@@ -1,6 +1,7 @@
 pub mod header;
 pub mod reader;
 pub mod writer;
+pub mod utils;
 
 use std::fs::File;
 use writer::Writer;
@@ -17,15 +18,17 @@ fn main() {
     let mut r =Reader::from_file(file_in).unwrap();
     r.read_header().unwrap();
     println!("{:?}", r.header);
-    let samples = r.get_samples_f32(true);
+    let samples = r.get_samples_f32().unwrap();
     println!("samples={}", samples.len());
 
     // write
     let mut w = Writer::new();
     let mut head = r.header.unwrap();
-    head.bits_per_sample = 24;
+    let samples_mono = utils::stereo_to_mono(samples);
+    head.num_channels = 1;
+    head.bits_per_sample = 32;
     head.sample_format = SampleFormat::Int;
-    w.from_scratch(&head, &samples).unwrap();
+    w.from_scratch(&head, &samples_mono).unwrap();
     w.to_file(&mut file_out).unwrap();
 } 
 

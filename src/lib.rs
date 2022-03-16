@@ -1,6 +1,7 @@
 pub mod header;
 pub mod reader;
 pub mod writer;
+pub mod utils;
 
 #[cfg(test)]
 mod tests {

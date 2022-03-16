@@ -96,15 +96,14 @@ impl Reader {
         Ok(())
     }
 
-    // todo: mono のオプションを実装していない
-    pub fn get_samples_f32(&mut self, mono: bool) -> Vec<f32> {
+    pub fn get_samples_f32(&mut self) -> Result<Vec<f32>, &'static str> {
         let mut result:Vec<f32> = Vec::new();
         loop {
             // read chunks
             let chunk_tag = self.read_str4();
             if chunk_tag == "" { break; }
             let size = self.read_u32().unwrap_or(0) as u64;
-            println!("tag={:?}::{}", chunk_tag, size);
+            println!("[info] tag={:?}::{}", chunk_tag, size);
             if size == 0 { continue }
             // data?
             if chunk_tag != "data" {
@@ -114,61 +113,66 @@ impl Reader {
             // read wav data
             let h = &self.header.unwrap();
             let num_sample = (size / (h.bits_per_sample / 8) as u64) as u64;
-            if h.sample_format == SampleFormat::Float {
-                match h.bits_per_sample {
-                    32 => {
-                        for _ in 0..num_sample {
-                            let lv = self.read_f32().unwrap_or(0.0);
-                            result.push(lv);
-                        }
-                    },
-                    64 => {
-                        for _ in 0..num_sample {
-                            let lv = self.read_f64().unwrap_or(0.0);
-                            result.push(lv as f32); // down to f32
-                        }
-                    },
-                    _ => panic!("{} {}bits", ERR_UNSUPPORTED_FORMAT, h.bits_per_sample),
-                }
-            } else if h.sample_format == SampleFormat::Int {
-                match h.bits_per_sample {
-                    8 => {
-                        for _ in 0..num_sample {
-                            // 0..255
-                            let lv = self.read_u8().unwrap_or(0);
-                            let fv = (lv - 128) as f32;
-                            result.push(fv);
-                        }
-                    },
-                    16 => {
-                        for _ in 0..num_sample {
-                            let lv = self.read_i16().unwrap_or(0);
-                            let fv = lv as f32 / (0xFFFF as f32 / 2.0);
-                            result.push(fv);
-                        }
-                    },
-                    24 => {
-                        for _ in 0..num_sample {
-                            let lv = self.read_i24().unwrap_or(0);
-                            let fv = lv as f32 / (0xFFFFFF as f32 / 2.0);
-                            result.push(fv);
-                        }
-                    },
-                    32 => {
-                        for _ in 0..num_sample {
-                            let lv = self.read_i32().unwrap_or(0);
-                            let fv = lv as f32 / (0xFFFFFFFFu32 as f32 / 2.0);
-                            result.push(fv);
-                        }
-                    },
-                    _ => panic!("{} {}bits", ERR_UNSUPPORTED_FORMAT, h.bits_per_sample),
-                } 
-            } else {
-                break;
+            match h.sample_format {
+                // float
+                SampleFormat::Float => {
+                    match h.bits_per_sample {
+                        32 => {
+                            for _ in 0..num_sample {
+                                let lv = self.read_f32().unwrap_or(0.0);
+                                result.push(lv);
+                            }
+                        },
+                        64 => {
+                            for _ in 0..num_sample {
+                                let lv = self.read_f64().unwrap_or(0.0);
+                                result.push(lv as f32); // down to f32
+                            }
+                        },
+                        _ => return Err(ERR_UNSUPPORTED_FORMAT),
+                    }
+                },
+                // int
+                SampleFormat::Int => {
+                    match h.bits_per_sample {
+                        8 => {
+                            for _ in 0..num_sample {
+                                // 0..255
+                                let lv = self.read_u8().unwrap_or(0);
+                                let fv = (lv - 128) as f32;
+                                result.push(fv);
+                            }
+                        },
+                        16 => {
+                            for _ in 0..num_sample {
+                                let lv = self.read_i16().unwrap_or(0);
+                                let fv = lv as f32 / (0xFFFF as f32 / 2.0);
+                                result.push(fv);
+                            }
+                        },
+                        24 => {
+                            for _ in 0..num_sample {
+                                let lv = self.read_i24().unwrap_or(0);
+                                let fv = lv as f32 / (0xFFFFFF as f32 / 2.0);
+                                result.push(fv);
+                            }
+                        },
+                        32 => {
+                            for _ in 0..num_sample {
+                                let lv = self.read_i32().unwrap_or(0);
+                                let fv = lv as f32 / (0xFFFFFFFFu32 as f32 / 2.0);
+                                result.push(fv);
+                            }
+                        },
+                        _ => return Err(ERR_UNSUPPORTED_FORMAT),
+                    }
+                },
+                _ => return Err(ERR_UNSUPPORTED_FORMAT),
             }
         }
-        result
+        Ok(result)
     }
+
 
     pub fn read_str4(&mut self) -> String {
         let mut buf = [0u8; 4];
