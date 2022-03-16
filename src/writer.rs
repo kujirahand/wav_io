@@ -43,7 +43,23 @@ impl Writer {
         self.write_u32(data_size);
         // write samples
         for v in samples.iter() {
-            self.write_f32(*v);
+            match head.sample_format {
+                SampleFormat::Int => {
+                    match head.bits_per_sample {
+                        24 => self.write_i24(*v),
+                        32 => self.write_i32(*v),
+                        _ => return Err(ERR_UNSUPPORTED_FORMAT),
+                    }
+                }, 
+                SampleFormat::Float => {
+                    match head.bits_per_sample {
+                        32 => self.write_f32(*v),
+                        64 => self.write_f32(*v), // TODO: 64bit
+                        _ => return Err(ERR_UNSUPPORTED_FORMAT),
+                    }
+                },
+                _ => return Err(ERR_UNSUPPORTED_FORMAT),
+            }
         }
         Ok(())
     }
@@ -60,6 +76,17 @@ impl Writer {
     }
     pub fn write_f32(&mut self, v: f32) {
         let bytes = v.to_le_bytes();
+        self.cur.write(&bytes).unwrap();
+    }
+    pub fn write_i24(&mut self, v: f32) {
+        let iv:i32 = (v * 2_147_483_648f32) as i32;
+        let bytes = iv.to_le_bytes();
+        let wb:[u8; 3] = [bytes[1], bytes[2], bytes[3]];
+        self.cur.write(&wb).unwrap();
+    }
+    pub fn write_i32(&mut self, v: f32) {
+        let iv:i32 = (v * 2_147_483_648f32) as i32;
+        let bytes = iv.to_le_bytes();
         self.cur.write(&bytes).unwrap();
     }
     pub fn write_u32(&mut self, v: u32) {

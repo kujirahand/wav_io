@@ -96,6 +96,7 @@ impl Reader {
         Ok(())
     }
 
+    // todo: mono のオプションを実装していない
     pub fn get_samples_f32(&mut self, mono: bool) -> Vec<f32> {
         let mut result:Vec<f32> = Vec::new();
         loop {
@@ -114,14 +115,30 @@ impl Reader {
             let h = &self.header.unwrap();
             let num_sample = (size / (h.bits_per_sample / 8) as u64) as u64;
             if h.sample_format == SampleFormat::Float {
-                for _ in 0..num_sample {
-                    let lv = self.read_f32().unwrap_or(0.0);
-                    result.push(lv);
+                match h.bits_per_sample {
+                    32 => {
+                        for _ in 0..num_sample {
+                            let lv = self.read_f32().unwrap_or(0.0);
+                            result.push(lv);
+                        }
+                    },
+                    64 => {
+                        for _ in 0..num_sample {
+                            let lv = self.read_f64().unwrap_or(0.0);
+                            result.push(lv as f32); // down to f32
+                        }
+                    },
+                    _ => panic!("{} {}bits", ERR_UNSUPPORTED_FORMAT, h.bits_per_sample),
                 }
             } else if h.sample_format == SampleFormat::Int {
                 match h.bits_per_sample {
                     8 => {
-
+                        for _ in 0..num_sample {
+                            // 0..255
+                            let lv = self.read_u8().unwrap_or(0);
+                            let fv = (lv - 128) as f32;
+                            result.push(fv);
+                        }
                     },
                     16 => {
                         for _ in 0..num_sample {
@@ -172,6 +189,22 @@ impl Reader {
             Some(v) => Some(f32::from_bits(v)),
             None => None,
         }
+    }
+
+    pub fn read_f64(&mut self) -> Option<f64> {
+        match self.read_u64() {
+            Some(v) => Some(f64::from_bits(v)),
+            None => None,
+        }
+    }
+
+    pub fn read_u64(&mut self) -> Option<u64> {
+        let mut buf = [0u8; 8];
+        match self.cur.read(&mut buf) {
+            Ok(v) => v,
+            Err(_) => return None,
+        };
+        Some(u64::from_le_bytes(buf))
     }
 
     pub fn read_u32(&mut self) -> Option<u32> {
