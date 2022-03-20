@@ -67,7 +67,7 @@ impl Reader {
         // channels
         let ch = self.read_u16().unwrap_or(0);
         if 1 <= ch && ch <= 2 {
-            header.num_channels = ch;
+            header.channels = ch;
         }
         // sample_rate
         header.sample_rate = self.read_u32().unwrap_or(0);

@@ -25,10 +25,13 @@ fn main() {
     let mut w = Writer::new();
     let mut head = r.header.unwrap();
     let samples_mono = utils::stereo_to_mono(samples);
-    head.num_channels = 1;
+
+    head.channels = 1;
     head.bits_per_sample = 32;
     head.sample_format = SampleFormat::Int;
-    w.from_scratch(&head, &samples_mono).unwrap();
+    let samples2 = utils::resample(samples_mono, head.sample_rate, 44_800);
+    head.sample_rate = 44_800;
+    w.from_scratch(&head, &samples2).unwrap();
     w.to_file(&mut file_out).unwrap();
 } 
 

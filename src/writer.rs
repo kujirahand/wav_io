@@ -33,10 +33,10 @@ impl Writer {
             _ => return Err(ERR_UNSUPPORTED_FORMAT),
         };
         self.write_u16(audio_format);
-        self.write_u16(head.num_channels);
+        self.write_u16(head.channels);
         self.write_u32(head.sample_rate);
-        self.write_u32(head.sample_rate * n_bytes * head.num_channels as u32);
-        self.write_u16(n_bytes as u16 * head.num_channels);
+        self.write_u32(head.sample_rate * n_bytes * head.channels as u32);
+        self.write_u16(n_bytes as u16 * head.channels);
         self.write_u16(head.bits_per_sample);
         // write data header
         self.write_str("data");
