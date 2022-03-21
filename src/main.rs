@@ -16,11 +16,13 @@ fn main() {
     let mut file_out = File::create("./test-out.wav").unwrap();
     writer::to_file(&mut file_out, &mut wav).unwrap(); 
     // resample
-    let mut file_out_16000 = File::create("./test-out16000.wav").unwrap();
-    let samples2 = utils::resample(wav.samples, wav.header.channels, wav.header.sample_rate, 16_000);
+    let new_sample_rate = 8_000;
+    let mut file_out_16000 = File::create("./test-out8000.wav").unwrap();
+    let samples2 = utils::resample(wav.samples, wav.header.channels, wav.header.sample_rate, new_sample_rate);
     let mut wav2 = header::WavData{header: wav.header, samples: samples2};
-    wav2.header.sample_rate = 16_000;
+    wav2.header.sample_rate = new_sample_rate;
     writer::to_file(&mut file_out_16000, &mut wav2).unwrap();
+    println!("resample.writer={:?}", wav2.header);
 }
 
 /*

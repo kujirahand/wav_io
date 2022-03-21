@@ -1,5 +1,13 @@
 /// wav file header
 
+/*
+const SAMPLE_RATE_CD: u32 = 44_100;
+const SAMPLE_RATE_DVD_AUDIO: u32 = 48_000;
+const SAMPLE_RATE_AM_RADIO: u32 = 22_000;
+const SAMPLE_RATE_FM_AUDIO: u32 = 32_000;
+const SAMPLE_RATE_TEL: u32 = 8_000;
+*/
+
 /// Sample Format
 #[derive(Debug,Copy,Clone,PartialEq)]
 pub enum SampleFormat {

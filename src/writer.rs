@@ -7,7 +7,7 @@ use std::fs::File;
 const ERR_UNSUPPORTED_FORMAT: &str = "unsupported wav format";
 const ERR_IO_ERROR: &str = "io error";
 
-/// write wav file
+/// write wav to file
 pub fn to_file(file_out: &mut File, wav: &mut WavData) -> Result<(), &'static str> {
     let mut w = Writer::new();
     match w.from_scratch(&wav.header, &wav.samples) {
@@ -21,6 +21,7 @@ pub fn to_file(file_out: &mut File, wav: &mut WavData) -> Result<(), &'static st
     Ok(())
 }
 
+/// Writer for binary
 pub struct Writer {
     cur: Cursor<Vec<u8>>,
 }
@@ -59,26 +60,24 @@ impl Writer {
         self.write_str("data");
         self.write_u32(data_size);
         // write samples
-        for v in samples.iter() {
-            match head.sample_format {
-                SampleFormat::Int => {
-                    match head.bits_per_sample {
-                        8 => self.write_i8(*v),
-                        16 => self.write_i16(*v),
-                        24 => self.write_i24(*v),
-                        32 => self.write_i32(*v),
-                        _ => return Err(ERR_UNSUPPORTED_FORMAT),
-                    }
-                }, 
-                SampleFormat::Float => {
-                    match head.bits_per_sample {
-                        32 => self.write_f32(*v),
-                        64 => self.write_f32(*v), // TODO: 64bit
-                        _ => return Err(ERR_UNSUPPORTED_FORMAT),
-                    }
-                },
-                _ => return Err(ERR_UNSUPPORTED_FORMAT),
-            }
+        match head.sample_format {
+            SampleFormat::Int => {
+                match head.bits_per_sample {
+                    8 => for v in samples.iter() { self.write_f32_to_u8(*v); },
+                    16 => for v in samples.iter() { self.write_f32_to_i16(*v); },
+                    24 => for v in samples.iter() { self.write_f32_to_i24(*v); },
+                    32 => for v in samples.iter() { self.write_f32_to_i32(*v); },
+                    _ => return Err(ERR_UNSUPPORTED_FORMAT),
+                }
+            },
+            SampleFormat::Float => {
+                match head.bits_per_sample {
+                    32 => for v in samples.iter() { self.write_f32(*v) },
+                    64 => for v in samples.iter() { self.write_f64(*v as f64) },
+                    _ => return Err(ERR_UNSUPPORTED_FORMAT),
+                }
+            },
+            _ => return Err(ERR_UNSUPPORTED_FORMAT),
         }
         Ok(())
     }
@@ -97,18 +96,27 @@ impl Writer {
         let bytes = v.to_le_bytes();
         self.cur.write(&bytes).unwrap();
     }
-    pub fn write_i24(&mut self, v: f32) {
+    pub fn write_f64(&mut self, v: f64) {
+        let bytes = v.to_le_bytes();
+        self.cur.write(&bytes).unwrap();
+    }
+    pub fn write_f32_to_u8(&mut self, v: f32) {
+        let iv:u8 = ((v * 128.0) as i16 + 127) as u8;
+        let bytes = iv.to_le_bytes();
+        self.cur.write(&bytes).unwrap();
+    }
+    pub fn write_f32_to_i24(&mut self, v: f32) {
         let iv:i32 = (v * 2_147_483_648f32) as i32;
         let bytes = iv.to_le_bytes();
         let wb:[u8; 3] = [bytes[1], bytes[2], bytes[3]];
         self.cur.write(&wb).unwrap();
     }
-    pub fn write_i16(&mut self, v: f32) {
-        let iv:i16 = (v * 65_536f32) as i16;
+    pub fn write_f32_to_i16(&mut self, v: f32) {
+        let iv:i16 = (v * 32768f32) as i16;
         let bytes = iv.to_le_bytes();
         self.cur.write(&bytes).unwrap();
     }
-    pub fn write_i32(&mut self, v: f32) {
+    pub fn write_f32_to_i32(&mut self, v: f32) {
         let iv:i32 = (v * 2_147_483_648f32) as i32;
         let bytes = iv.to_le_bytes();
         self.cur.write(&bytes).unwrap();
