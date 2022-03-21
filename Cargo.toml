@@ -8,7 +8,7 @@ edition = "2021"
 readme = "README.md"
 repository = "https://github.com/kujirahand/wav_io"
 documentation = "https://docs.rs/wav_io"
-keywords = ["wav", "wave", "riff", "resample", "audio", "split"]
+keywords = ["wav", "wave", "riff", "resample", "audio"]
 include = ["src/", "LICENSE", "README.md", "COPYRIGHT"]
 
 [package.metadata.docs.rs]
