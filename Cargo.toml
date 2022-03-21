@@ -1,6 +1,6 @@
 [package]
 name = "wav_io"
-version = "0.1.1"
+version = "0.1.2"
 authors = ["kujirahand"]
 description = "Wav file reader and writer"
 license = "MIT"

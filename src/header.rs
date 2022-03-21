@@ -30,9 +30,20 @@ pub struct WavHeader {
 impl WavHeader {
     /// create WavHeader
     pub fn new() -> Self {
+        Self::new_mono()
+    }
+    pub fn new_mono() -> Self {
         Self {
-            sample_format: SampleFormat::Int,
+            sample_format: SampleFormat::Float,
             channels: 1,
+            sample_rate: 44100,
+            bits_per_sample: 32,
+        }
+    }
+    pub fn new_stereo() -> Self {
+        Self {
+            sample_format: SampleFormat::Float,
+            channels: 2,
             sample_rate: 44100,
             bits_per_sample: 32,
         }

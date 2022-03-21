@@ -4,29 +4,66 @@ pub mod writer;
 pub mod utils;
 pub mod resample;
 pub mod splitter;
+pub mod tone;
 
 use std::fs::File;
+use std::f32::consts::PI;
+use header::*;
 
 fn main() {
+    write_tone();
+    read_write();
+    resample(); 
+    split();
+}
+
+fn read_write() {
     // read
-    let file_in = File::open("./test.wav").unwrap();
-    let mut wav = reader::from_file(file_in).unwrap();
+    let file_in = File::open("./tone.wav").unwrap();
+    let wav = reader::from_file(file_in).unwrap();
     println!("header={:?}", wav.header);
     println!("samples.len={}", wav.samples.len());
     
     // write
     let mut file_out = File::create("./test-out.wav").unwrap();
-    writer::to_file(&mut file_out, &mut wav).unwrap(); 
-    
+    writer::to_file(&mut file_out, &wav).unwrap(); 
+}
+
+fn write_tone() {
+    // write tone
+    let header = WavHeader::new_mono();
+    let mut samples = vec![];
+    for t in 0..header.sample_rate {
+        let v = ((t as f32 / header.sample_rate as f32) * 440.0 * 2.0 * PI).sin() * 0.6;
+        samples.push(v);
+    }
+    let mut file_out = File::create("./tone.wav").unwrap();
+    writer::to_file(&mut file_out, &WavData{header, samples}).unwrap();
+
+    // melody
+    let mut header = WavHeader::new_mono();
+    let mut samples = vec![];
+    let opt = tone::ToneOptions::new();
+    header.sample_rate = opt.sample_rate;
+    tone::write_mml(&mut samples, "l4 cege cege cege c1", &opt);
+    let mut file_out = File::create("./melody.wav").unwrap();
+    writer::to_file(&mut file_out, &WavData{header, samples}).unwrap();
+}
+
+fn resample() {    
     // resample
+    let file_in = File::open("./tone.wav").unwrap();
+    let wav = reader::from_file(file_in).unwrap();
     let new_sample_rate = 16_000;
-    let mut file_out = File::create("./test-resample.wav").unwrap();
+    let mut file_out = File::create("./tone-resample.wav").unwrap();
     let samples2 = resample::linear(wav.samples, wav.header.channels, wav.header.sample_rate, new_sample_rate);
     let mut wav2 = header::WavData{header: wav.header, samples: samples2};
     wav2.header.sample_rate = new_sample_rate;
-    writer::to_file(&mut file_out, &mut wav2).unwrap();
+    writer::to_file(&mut file_out, &wav2).unwrap();
     println!("resample.writer={:?}", wav2.header);
+}
 
+fn split() {
     // split
     let file_in = File::open("./test.wav").unwrap();
     let mut wav = reader::from_file(file_in).unwrap();
@@ -41,8 +78,8 @@ fn main() {
         println!("split_samples={}", fname);
         let mut file_out = File::create(fname).unwrap();
         let sub = splitter::sub_samples(&samples, *range);
-        let mut wav = header::WavData{header: wav.header, samples: sub};
-        writer::to_file(&mut file_out, &mut wav).unwrap();
+        let wav = header::WavData{header: wav.header, samples: sub};
+        writer::to_file(&mut file_out, &wav).unwrap();
     }
 }
 
