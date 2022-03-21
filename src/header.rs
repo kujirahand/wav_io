@@ -45,5 +45,3 @@ pub struct WavData {
     pub header: WavHeader,
     pub samples: Vec<f32>,
 }
-
-
