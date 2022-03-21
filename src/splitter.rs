@@ -162,4 +162,17 @@ mod tests {
             assert_eq!(part, vec![1.0, 1.0, 0.5]);
         }
     }
+
+    #[test]
+    fn test_split3() {
+        let mut samples = vec![0.0, 0.8,0.8,0.8, 0.0,0.0, 0.8,0.8,0.4];
+        let res = split_samples(&mut samples, 3, false);
+        assert_eq!(res.len(), 2);
+        if res.len() >= 2 {
+            let part = sub_samples(&samples, res[0]);
+            assert_eq!(part, vec![1.0, 1.0, 1.0, 0.0,0.0]);
+            let part = sub_samples(&samples, res[1]);
+            assert_eq!(part, vec![1.0, 1.0, 0.5]);
+        }
+    }
 }

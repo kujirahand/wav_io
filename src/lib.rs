@@ -1,3 +1,9 @@
+/// # wav_io 
+/// This is a crate for reading and writing wav file,
+/// it can read 8, 16, 24 bits int, 16, 32 bits float.
+/// ## Example
+/// ```
+/// ```
 pub mod header;
 pub mod reader;
 pub mod writer;

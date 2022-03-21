@@ -5,10 +5,18 @@ pub mod utils;
 pub mod splitter;
 
 use std::fs::File;
-use writer::Writer;
-use reader::Reader;
-use header::*;
 
+fn main() {
+    // read
+    let file_in = File::open("./i32.wav").unwrap();
+    let mut wav = reader::read_from_file(file_in).unwrap();
+    println!("header={:?}", wav.header);
+    // write
+    let mut file_out = File::create("./out.wav").unwrap();
+    writer::write(&mut file_out, &mut wav).unwrap();   
+}
+
+/*
 fn main() {
     iotest();
     // split
@@ -54,3 +62,5 @@ fn iotest() {
     w.from_scratch(&head, &samples2).unwrap();
     w.to_file(&mut file_out).unwrap();
 }
+
+*/

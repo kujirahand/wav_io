@@ -1,8 +1,22 @@
-use crate::header::{WavHeader, SampleFormat};
+use crate::header::{WavHeader, SampleFormat, WavData};
 use std::io::{Cursor, Write, Read};
 use std::fs::File;
 
 const ERR_UNSUPPORTED_FORMAT: &str = "unsupported wav format";
+const ERR_IO_ERROR: &str = "io error";
+
+pub fn write(file_out: &mut File, wav: &mut WavData) -> Result<(), &'static str> {
+    let mut w = Writer::new();
+    match w.from_scratch(&wav.header, &wav.samples) {
+        Err(err) => return Err(err),
+        Ok(_) => {},
+    }
+    match w.to_file(file_out) {
+        Err(_) => return Err(ERR_IO_ERROR),
+        Ok(_) => {},
+    }
+    Ok(())
+}
 
 pub struct Writer {
     cur: Cursor<Vec<u8>>,
@@ -14,7 +28,7 @@ impl Writer {
             cur: Cursor::new(Vec::<u8>::new())
         }
     }
-    pub fn from_scratch(&mut self, head: &WavHeader, samples: &Vec<f32>) -> Result<(), &str> {
+    pub fn from_scratch(&mut self, head: &WavHeader, samples: &Vec<f32>) -> Result<(), &'static str> {
         let n_bytes = (head.bits_per_sample / 8) as u32;
         let mut samples_len = samples.len();
         let has_pad = samples_len % 2;
