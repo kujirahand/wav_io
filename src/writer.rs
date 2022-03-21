@@ -8,7 +8,7 @@ const ERR_UNSUPPORTED_FORMAT: &str = "unsupported wav format";
 const ERR_IO_ERROR: &str = "io error";
 
 /// write wav file
-pub fn write(file_out: &mut File, wav: &mut WavData) -> Result<(), &'static str> {
+pub fn to_file(file_out: &mut File, wav: &mut WavData) -> Result<(), &'static str> {
     let mut w = Writer::new();
     match w.from_scratch(&wav.header, &wav.samples) {
         Err(err) => return Err(err),

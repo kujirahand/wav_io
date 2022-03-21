@@ -1,3 +1,5 @@
+/// Wav file Splitter
+
 #[derive(Debug,Copy, Clone,PartialEq)]
 pub struct WavSplitRange {
     pub start: usize,
@@ -21,6 +23,7 @@ fn get_max(a: usize, b: usize) -> usize {
     if a > b { a } else { b }
 }
 
+/// Status for Splitter
 #[derive(Debug,Clone,PartialEq)]
 enum SplitStatus {
     FirstSilence,
@@ -52,16 +55,10 @@ pub fn split_samples(samples: &mut Vec<f32>, sample_rate: u32, use_margin: bool)
         let new_size = i_end_margin - i_begin_margin + 1;
         if new_size < min_length { return }
         println!("split={}", i_begin);
-        // copy
-        // let mut sub_samples = Vec::with_capacity(new_size);
-        // for i in i_begin_margin..=i_end_margin {
-        //     sub_samples.push(samples[i]);
-        // }
         // result
         let r = WavSplitRange {
             start: i_begin_margin,
             end: i_end_margin,
-            // samples: sub_samples,
             // start_nanotime: i_begin_margin / sample_rate as usize,
             // end_nanotime: i_end_margin / sample_rate as usize,
         };
@@ -124,7 +121,7 @@ pub fn split_samples(samples: &mut Vec<f32>, sample_rate: u32, use_margin: bool)
 
 pub fn sub_samples(samples: &Vec<f32>, range: WavSplitRange) -> Vec<f32> {
     let mut result = Vec::with_capacity(range.end - range.start);
-    for i in range.start..range.end {
+    for i in range.start..=range.end {
         let v = samples[i];
         result.push(v);
     }
@@ -143,11 +140,11 @@ mod tests {
 
     #[test]
     fn test_split1() {
-        let mut samples = vec![0.0,0.0,0.0, 0.8,0.8,0.8];
+        let mut samples = vec![0.0,0.0,0.0, 1.0,0.9,0.8];
         let res = split_samples(&mut samples, 3, false);
         assert_eq!(res.len(), 1);
         let part = sub_samples(&samples, res[0]);
-        assert_eq!(part, vec![1.0, 1.0, 1.0]);
+        assert_eq!(part, vec![1.0,0.9,0.8]);
     }
 
     #[test]

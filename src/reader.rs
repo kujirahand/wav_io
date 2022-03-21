@@ -9,7 +9,7 @@ const ERR_BROKEN_WAV: &str = "broken wav file";
 
 
 /// Get header and samples from file
-pub fn read_from_file(file: File) -> Result<WavData, &'static str> {
+pub fn from_file(file: File) -> Result<WavData, &'static str> {
     // read file
     let mut r: Reader = match Reader::from_file(file) {
         Err(err) => return Err(err),
