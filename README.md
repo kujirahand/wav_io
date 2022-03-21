@@ -4,14 +4,15 @@ This is a crate for reading and writing wav file.
 
 ## Suported format:
 
-- Int:  8, 16, 24 bits
-- Float: 16, 32 bits
+- PCM 8, 16, 24, 32 bits Int
+- PCM 32, 64 bits Float
 
 ## Functions
 
 - read / write
 - resamle
 - split by silence
+- make sine wave / MML(Music Macro Language)
 
 ## Example
 

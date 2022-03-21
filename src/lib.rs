@@ -2,15 +2,14 @@
 //! This crate reads and writes WAV files.
 //! 
 //! # Supported format
-//! - PCM 8,16,24,32 bits Int
-//! - PCM 32,64 bits Float
+//! - PCM 8, 16, 24, 32 bits Int
+//! - PCM 32, 64 bits Float
 //! 
 //! # Functoins
 //! - read & write
 //! - resample
 //! - split
-//! - make sine wave
-//! - mml (music macro language)
+//! - make sine wave / MML (music macro language)
 //! 
 //! ## Example
 //! ```
