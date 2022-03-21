@@ -6,12 +6,32 @@ const ERR_INVALID_FORMAT: &str = "invalid wav format";
 const ERR_UNSUPPORTED_FORMAT: &str = "unsupported wav format";
 const ERR_BROKEN_WAV: &str = "broken wav file";
 
+
+/// Get header and samples from file
+pub fn read_from_file(file: File) -> Result<WavData, &'static str> {
+    // read file
+    let mut r: Reader = match Reader::from_file(file) {
+        Err(err) => return Err(err),
+        Ok(r) => r,
+    };
+    // read header
+    let header = match r.read_header() {
+        Err(err) => return Err(err),
+        Ok(head) => head,
+    };
+    // read samples
+    let samples = match r.get_samples_f32() {
+        Err(err) => return Err(err),
+        Ok(samples) => samples,
+    };
+    Ok(WavData{header, samples})
+}
+
 pub struct Reader {
     pub cur: Cursor<Vec<u8>>,
     pub header: Option<WavHeader>,
 }
-
-impl Reader {
+impl Reader {    
     /// Create Reader Object from wav file
     pub fn from_file(file: File) -> Result<Reader, &'static str> {
         let mut data: Vec<u8> = Vec::new();
@@ -25,13 +45,13 @@ impl Reader {
     /// Crate Reader Object from Vec
     pub fn from_vec(data: Vec<u8>) -> Result<Reader, &'static str> {
         let reader = Reader {
+            cur: Cursor::new(data),
             header: None,
-            cur: Cursor::new(data)
         };
         Ok(reader)
     }
     /// Read Wav file header
-    pub fn read_header(&mut self) -> Result<(), &'static str> {
+    pub fn read_header(&mut self) -> Result<WavHeader, &'static str> {
         let mut header = WavHeader::new();
         // RIFF header
         let riff_tag = self.read_str4();
@@ -87,13 +107,13 @@ impl Reader {
             return Err(ERR_BROKEN_WAV);
         }
         header.bits_per_sample = bits_per_sample;
-        println!("chunk_size={}",chunk_size);
+        // println!("chunk_size={}",chunk_size);
         let pos = self.cur.position() + chunk_size as u64 - 16;
         self.cur.set_position(pos);
 
         // set to header
         self.header = Some(header);
-        Ok(())
+        Ok(header)
     }
 
     pub fn get_samples_f32(&mut self) -> Result<Vec<f32>, &'static str> {
@@ -172,7 +192,6 @@ impl Reader {
         }
         Ok(result)
     }
-
 
     pub fn read_str4(&mut self) -> String {
         let mut buf = [0u8; 4];

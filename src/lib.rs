@@ -2,6 +2,7 @@ pub mod header;
 pub mod reader;
 pub mod writer;
 pub mod utils;
+pub mod splitter;
 
 #[cfg(test)]
 mod tests {

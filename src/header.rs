@@ -9,7 +9,6 @@ pub enum SampleFormat {
     SubFormat,
 }
 
-
 #[derive(Debug,Copy,Clone,PartialEq)]
 pub struct WavHeader {
     pub sample_format: SampleFormat, // pcm=1
@@ -27,4 +26,10 @@ impl WavHeader {
             bits_per_sample: 32,
         }
     }
+}
+
+#[derive(Debug,Clone,PartialEq)]
+pub struct WavData {
+    pub header: WavHeader,
+    pub samples: Vec<f32>,
 }
