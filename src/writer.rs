@@ -1,3 +1,5 @@
+/// Wav file writer
+
 use crate::header::{WavHeader, SampleFormat, WavData};
 use std::io::{Cursor, Write, Read};
 use std::fs::File;
@@ -5,6 +7,7 @@ use std::fs::File;
 const ERR_UNSUPPORTED_FORMAT: &str = "unsupported wav format";
 const ERR_IO_ERROR: &str = "io error";
 
+/// write wav file
 pub fn write(file_out: &mut File, wav: &mut WavData) -> Result<(), &'static str> {
     let mut w = Writer::new();
     match w.from_scratch(&wav.header, &wav.samples) {

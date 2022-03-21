@@ -1,9 +1,19 @@
 [package]
 name = "wav_io"
 version = "0.1.0"
+authors = ["kujirahand"]
+description = "Wav file reader and writer"
+license = "MIT"
 edition = "2021"
+readme = "README.md"
+repository = "https://github.com/kujirahand/wav_io"
+documentation = "https://docs.rs/wav_io"
+keywords = ["wav", "wave", "riff", "resample", "audio", "split"]
+include = ["src/", "LICENSE", "README.md", "COPYRIGHT"]
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[package.metadata.docs.rs]
+rustc-args = ["--cfg", "docsrs"]
+all-features = true
 
 [dependencies]
 

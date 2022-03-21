@@ -1,3 +1,4 @@
+/// Wav file reader
 use std::fs::File;
 use std::io::{Cursor, Read};
 use crate::header::*;
@@ -27,6 +28,7 @@ pub fn read_from_file(file: File) -> Result<WavData, &'static str> {
     Ok(WavData{header, samples})
 }
 
+/// Wav file reader for binary
 pub struct Reader {
     pub cur: Cursor<Vec<u8>>,
     pub header: Option<WavHeader>,
@@ -123,7 +125,8 @@ impl Reader {
             let chunk_tag = self.read_str4();
             if chunk_tag == "" { break; }
             let size = self.read_u32().unwrap_or(0) as u64;
-            println!("[info] tag={:?}::{}", chunk_tag, size);
+            // todo: check tag
+            // println!("[info] tag={:?}::{}", chunk_tag, size);
             if size == 0 { continue }
             // data?
             if chunk_tag != "data" {

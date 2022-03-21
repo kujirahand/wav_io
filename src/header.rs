@@ -1,5 +1,6 @@
-// wav file header
+/// wav file header
 
+/// Sample Format
 #[derive(Debug,Copy,Clone,PartialEq)]
 pub enum SampleFormat {
     Int,
@@ -9,6 +10,7 @@ pub enum SampleFormat {
     SubFormat,
 }
 
+/// Wav file header
 #[derive(Debug,Copy,Clone,PartialEq)]
 pub struct WavHeader {
     pub sample_format: SampleFormat, // pcm=1
@@ -18,6 +20,7 @@ pub struct WavHeader {
 }
 
 impl WavHeader {
+    /// create WavHeader
     pub fn new() -> Self {
         Self {
             sample_format: SampleFormat::Int,
@@ -28,8 +31,10 @@ impl WavHeader {
     }
 }
 
+/// Wav header and samples
 #[derive(Debug,Clone,PartialEq)]
 pub struct WavData {
     pub header: WavHeader,
     pub samples: Vec<f32>,
 }
+
