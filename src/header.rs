@@ -39,10 +39,11 @@ impl WavHeader {
     }
 }
 
-/// Wav header and samples
+/// Wav Data
 #[derive(Debug,Clone,PartialEq)]
 pub struct WavData {
     pub header: WavHeader,
     pub samples: Vec<f32>,
 }
+
 

@@ -54,7 +54,7 @@ pub fn split_samples(samples: &mut Vec<f32>, sample_rate: u32, use_margin: bool)
         let i_end_margin = i_end;
         let new_size = i_end_margin - i_begin_margin + 1;
         if new_size < min_length { return }
-        println!("split={}", i_begin);
+        // println!("split={}", i_begin);
         // result
         let r = WavSplitRange {
             start: i_begin_margin,

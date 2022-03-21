@@ -1,6 +1,6 @@
 [package]
 name = "wav_io"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["kujirahand"]
 description = "Wav file reader and writer"
 license = "MIT"
@@ -9,7 +9,7 @@ readme = "README.md"
 repository = "https://github.com/kujirahand/wav_io"
 documentation = "https://docs.rs/wav_io"
 keywords = ["wav", "wave", "riff", "resample", "audio"]
-include = ["src/", "LICENSE", "README.md", "COPYRIGHT"]
+include = ["src/", "LICENSE", "README.md"]
 
 [package.metadata.docs.rs]
 rustc-args = ["--cfg", "docsrs"]

@@ -1,3 +1,5 @@
+/// Wav header and samples
+
 /// convert stereo to mono
 pub fn stereo_to_mono(in_v: Vec<f32>) -> Vec<f32> {
     let new_size = in_v.len() / 2;
