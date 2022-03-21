@@ -63,6 +63,8 @@ impl Writer {
             match head.sample_format {
                 SampleFormat::Int => {
                     match head.bits_per_sample {
+                        8 => self.write_i8(*v),
+                        16 => self.write_i16(*v),
                         24 => self.write_i24(*v),
                         32 => self.write_i32(*v),
                         _ => return Err(ERR_UNSUPPORTED_FORMAT),
@@ -100,6 +102,11 @@ impl Writer {
         let bytes = iv.to_le_bytes();
         let wb:[u8; 3] = [bytes[1], bytes[2], bytes[3]];
         self.cur.write(&wb).unwrap();
+    }
+    pub fn write_i16(&mut self, v: f32) {
+        let iv:i16 = (v * 65_536f32) as i16;
+        let bytes = iv.to_le_bytes();
+        self.cur.write(&bytes).unwrap();
     }
     pub fn write_i32(&mut self, v: f32) {
         let iv:i32 = (v * 2_147_483_648f32) as i32;

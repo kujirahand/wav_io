@@ -8,13 +8,19 @@ use std::fs::File;
 
 fn main() {
     // read
-    let file_in = File::open("./i32.wav").unwrap();
+    let file_in = File::open("./test.wav").unwrap();
     let mut wav = reader::from_file(file_in).unwrap();
     println!("header={:?}", wav.header);
     println!("samples.len={}", wav.samples.len());
     // write
-    let mut file_out = File::create("./out.wav").unwrap();
-    writer::to_file(&mut file_out, &mut wav).unwrap();   
+    let mut file_out = File::create("./test-out.wav").unwrap();
+    writer::to_file(&mut file_out, &mut wav).unwrap(); 
+    // resample
+    let mut file_out_16000 = File::create("./test-out16000.wav").unwrap();
+    let samples2 = utils::resample(wav.samples, wav.header.channels, wav.header.sample_rate, 16_000);
+    let mut wav2 = header::WavData{header: wav.header, samples: samples2};
+    wav2.header.sample_rate = 16_000;
+    writer::to_file(&mut file_out_16000, &mut wav2).unwrap();
 }
 
 /*

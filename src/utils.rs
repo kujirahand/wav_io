@@ -35,17 +35,36 @@ pub fn split_stereo_wave(samples: Vec<f32>) -> (Vec<f32>, Vec<f32>) {
     (l_samples, r_samples)
 }
 
+/// join LR chanel to stereo wave
+pub fn join_stereo_wave(l_samples: Vec<f32>, r_samples: Vec<f32>) -> Vec<f32> {
+    let mut result = Vec::with_capacity(l_samples.len() * 2);
+    for i in 0..l_samples.len() {
+        let left = l_samples[i];
+        let right = r_samples[i];
+        result.push(left);
+        result.push(right);
+    }
+    result
+}
+
 /// resample audio sample rate
-pub fn resample(samples: Vec<f32>, cur_rate: u32, new_rate: u32) -> Vec<f32> {
+pub fn resample(samples: Vec<f32>, channels: u16, cur_rate: u32, new_rate: u32) -> Vec<f32> {
     // same rate
     if cur_rate == new_rate {
         return samples.clone();
     }
-    if cur_rate < new_rate {
-        resample_upsamle(samples, cur_rate, new_rate)
-    } else {
-        resample_downsample(samples, cur_rate, new_rate)
+    // check channels
+    if channels == 1 {
+        if cur_rate < new_rate {
+            return resample_upsamle(samples, cur_rate, new_rate);
+        } else {
+            return resample_downsample(samples, cur_rate, new_rate);
+        }
     }
+    let (mut l_samples, mut r_samples) = split_stereo_wave(samples);
+    l_samples = resample(l_samples, 1, cur_rate, new_rate);
+    r_samples = resample(r_samples, 1, cur_rate, new_rate);
+    join_stereo_wave(l_samples, r_samples)
 }
 
 fn resample_upsamle(samples: Vec<f32>, cur_rate: u32, new_rate: u32) -> Vec<f32> {
@@ -102,6 +121,15 @@ fn resample_downsample(samples: Vec<f32>, cur_rate: u32, new_rate: u32) -> Vec<f
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn test_join_split() {
+        let f = vec![0.1, 0.2, 0.3, 0.4];
+        let (l, r) = split_stereo_wave(f);
+        assert_eq!(l, vec![0.1, 0.3]);
+        assert_eq!(r, vec![0.2, 0.4]);
+        let lr = join_stereo_wave(l, r);
+        assert_eq!(lr, vec![0.1, 0.2, 0.3, 0.4]);
+    }
     #[test]
     fn test_stereo_to_mono() {
         let f2 = vec![1.0, 1.0, 2.0, 2.0, 3.0, 3.0];
