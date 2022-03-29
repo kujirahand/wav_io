@@ -6,6 +6,25 @@ pub struct WavSplitRange {
     pub end: usize,
 }
 
+#[derive(Debug,Copy, Clone,PartialEq)]
+pub struct WavSplitOption {
+    pub use_margin: bool,
+    pub margin_sec: f32,
+    pub min_silence_level: f32,
+    pub min_silence_duration: f32,
+}
+impl WavSplitOption {
+    pub fn new() -> Self {
+        Self {
+            use_margin: true,
+            margin_sec: 0.1,
+            min_silence_level: 0.05, 
+            min_silence_duration: 0.5, // about 0.4 - 0.7
+        }
+    }
+}
+
+
 /// normalize samples
 pub fn normalize(samples: &mut Vec<f32>) {
     let mut max = 0.0;
@@ -33,10 +52,9 @@ enum SplitStatus {
 }
 
 /// split wave data
-pub fn split_samples(samples: &mut Vec<f32>, sample_rate: u32, use_margin: bool) -> Vec<WavSplitRange> {
-    let th_silence = 0.05;
-    let min_silence_duration = 0.5; // about 0.4 - 0.7
-    let margin_time = 0.1;
+pub fn split_samples(samples: &mut Vec<f32>, sample_rate: u32, opt: &WavSplitOption) -> Vec<WavSplitRange> {
+    let th_silence = opt.min_silence_level;
+    let min_silence_duration = opt.min_silence_duration;
 
     let mut result_vec = vec![];
 
@@ -46,8 +64,8 @@ pub fn split_samples(samples: &mut Vec<f32>, sample_rate: u32, use_margin: bool)
     let min_length = ((30.0 / 441000.0) * sample_rate as f32) as usize;
 
     let mut go_split = |i_begin: usize, i_end: usize| {
-        let i_margin = if use_margin {
-            (margin_time * sample_rate as f32).floor() as usize
+        let i_margin = if opt.use_margin {
+            (opt.margin_sec * sample_rate as f32).floor() as usize
         } else { 0 };
         // calc margin time
         let i_begin_margin = get_max(0, i_begin - i_margin);
@@ -141,7 +159,7 @@ mod tests {
     #[test]
     fn test_split1() {
         let mut samples = vec![0.0,0.0,0.0, 1.0,0.9,0.8];
-        let res = split_samples(&mut samples, 3, false);
+        let res = split_samples(&mut samples, 3, &WavSplitOption::new());
         assert_eq!(res.len(), 1);
         let part = sub_samples(&samples, res[0]);
         assert_eq!(part, vec![1.0,0.9,0.8]);
@@ -150,7 +168,7 @@ mod tests {
     #[test]
     fn test_split2() {
         let mut samples = vec![0.0,0.0,0.0, 0.8,0.8,0.8, 0.0,0.0,0.0, 0.8,0.8,0.4];
-        let res = split_samples(&mut samples, 3, false);
+        let res = split_samples(&mut samples, 3, &WavSplitOption::new());
         assert_eq!(res.len(), 2);
         if res.len() >= 2 {
             let part = sub_samples(&samples, res[0]);
@@ -163,7 +181,7 @@ mod tests {
     #[test]
     fn test_split3() {
         let mut samples = vec![0.0, 0.8,0.8,0.8, 0.0,0.0, 0.8,0.8,0.4];
-        let res = split_samples(&mut samples, 3, false);
+        let res = split_samples(&mut samples, 3, &WavSplitOption::new());
         assert_eq!(res.len(), 2);
         if res.len() >= 2 {
             let part = sub_samples(&samples, res[0]);

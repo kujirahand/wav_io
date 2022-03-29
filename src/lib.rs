@@ -60,13 +60,13 @@
 //!        samples = utils::stereo_to_mono(samples);
 //!        wav.header.channels = 1;
 //!    }
-//!    let range_vec = splitter::split_samples(&mut samples, wav.header.sample_rate, true);
+//!    let range_vec = splitter::split_samples(&mut samples, wav.header.sample_rate, &splitter::WavSplitOption::new());
 //!    for (i, range) in range_vec.iter().enumerate() {
 //!        let fname = format!("sub-{}.wav", i);
 //!        println!("split_samples={}", fname);
 //!        let mut file_out = File::create(fname).unwrap();
 //!        let sub = splitter::sub_samples(&samples, *range);
-//!        let wav = header::WavData{header: wav.header, samples: sub};
+//!        let wav = WavData{header: wav.header, samples: sub};
 //!        writer::to_file(&mut file_out, &wav).unwrap();
 //!    }
 //! }

@@ -12,7 +12,7 @@ This is a crate for reading and writing wav file.
 - read / write
 - resamle
 - split by silence
-- make sine wave / MML(Music Macro Language)
+- make sine wave
 
 ## Example
 
