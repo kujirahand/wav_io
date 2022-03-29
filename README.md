@@ -72,7 +72,7 @@ fn split() {
         samples = utils::stereo_to_mono(samples);
         wav.header.channels = 1;
     }
-    let range_vec = splitter::split_samples(&mut samples, wav.header.sample_rate, true);
+    let range_vec = splitter::split_samples(&mut samples, wav.header.sample_rate, &splitter::WavSplitOption::new());
     for (i, range) in range_vec.iter().enumerate() {
         let fname = format!("sub-{}.wav", i);
         println!("split_samples={}", fname);
