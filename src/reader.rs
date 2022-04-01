@@ -6,7 +6,7 @@ use crate::header::*;
 const ERR_INVALID_FORMAT: &str = "invalid wav format";
 const ERR_UNSUPPORTED_FORMAT: &str = "unsupported wav format";
 const ERR_BROKEN_WAV: &str = "broken wav file";
-
+const ERR_FILE_OPEN_ERROR: &str = "failed to open file";
 
 /// Get header and samples from file
 pub fn from_file(file: File) -> Result<WavData, &'static str> {
@@ -26,6 +26,15 @@ pub fn from_file(file: File) -> Result<WavData, &'static str> {
         Ok(samples) => samples,
     };
     Ok(WavData{header, samples})
+}
+
+/// Get header and samples from file path
+pub fn from_file_str(file_path: &str) -> Result<WavData, &'static str> {
+    let f = match File::open(file_path) {
+        Ok(f) => f,
+        Err(_) => return Err(ERR_FILE_OPEN_ERROR),
+    };
+    from_file(f)
 }
 
 /// Wav file reader for binary

@@ -18,7 +18,7 @@ impl WavSplitOption {
         Self {
             use_margin: true,
             margin_sec: 0.1,
-            min_silence_level: 0.05, 
+            min_silence_level: 0.05, // 0.05
             min_silence_duration: 0.5, // about 0.4 - 0.7
         }
     }
@@ -38,7 +38,7 @@ pub fn normalize(samples: &mut Vec<f32>) {
     }
 }
 
-fn get_max(a: usize, b: usize) -> usize {
+fn get_max(a: isize, b: isize) -> isize {
     if a > b { a } else { b }
 }
 
@@ -68,7 +68,7 @@ pub fn split_samples(samples: &mut Vec<f32>, sample_rate: u32, opt: &WavSplitOpt
             (opt.margin_sec * sample_rate as f32).floor() as usize
         } else { 0 };
         // calc margin time
-        let i_begin_margin = get_max(0, i_begin - i_margin);
+        let i_begin_margin = get_max(0, i_begin as isize - i_margin as isize) as usize;
         let i_end_margin = i_end;
         let new_size = i_end_margin - i_begin_margin + 1;
         if new_size < min_length { return }
