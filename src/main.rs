@@ -104,6 +104,7 @@ fn command_info(cmd: CommandOpt) {
     println!("mml.sec={}", time_s);
  }
 
+ use std::io::Write;
  fn command_split(cmd: CommandOpt) {
     if cmd.is_debug {
         println!("{:?}", cmd);
@@ -137,15 +138,25 @@ fn command_info(cmd: CommandOpt) {
     // split
     let opt = splitter::WavSplitOption::new();
     let range_vec = splitter::split_samples(&mut samples, wav.header.sample_rate, &opt);
+    let mut json = String::from("[");
     // save to dir
     for (i, range) in range_vec.iter().enumerate() {
-        let fname = format!("{}/sub-{}.wav", &outdir, i);
-        println!("split_samples={}", fname);
-        let mut file_out = std::fs::File::create(fname).unwrap();
+        let name = format!("{}.wav", i);
+        let fname = format!("{}/{}", &outdir, &name);
+        println!("- {}", fname);
+        let mut file_out = std::fs::File::create(&fname).unwrap();
         let sub = splitter::sub_samples(&samples, *range);
         let wav = header::WavData{header: wav.header, samples: sub};
         writer::to_file(&mut file_out, &wav).unwrap();
+        // add to object
+        json += &format!("{{ no:{}, file:\"{}\", start:{}, end:{} }}", i, name, range.start, range.end);
+        if i != range_vec.len() - 1 { json += ","; }
     }
+    json += "]";
+    // save split info
+    let jsonfile = &format!("{}/split.json", outdir);
+    let mut file = std::fs::File::create(jsonfile).unwrap();
+    write!(file, "{}", json).unwrap();
 }
 
 fn show_help() {
