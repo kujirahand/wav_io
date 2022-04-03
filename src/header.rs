@@ -56,3 +56,9 @@ pub struct WavData {
     pub header: WavHeader,
     pub samples: Vec<f32>,
 }
+
+impl WavData {
+    pub fn new(header: WavHeader, samples: Vec<f32>) -> Self {
+        Self {header, samples}
+    }
+}

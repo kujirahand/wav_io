@@ -149,7 +149,7 @@ fn command_info(cmd: CommandOpt) {
         let wav = header::WavData{header: wav.header, samples: sub};
         writer::to_file(&mut file_out, &wav).unwrap();
         // add to object
-        json += &format!("{{ no:{}, file:\"{}\", start:{}, end:{} }}", i, name, range.start, range.end);
+        json += &format!("{{ \"no\":{}, \"file\":\"{}\", \"start\":{}, \"end\":{} }}", i, name, range.start, range.end);
         if i != range_vec.len() - 1 { json += ","; }
     }
     json += "]";
