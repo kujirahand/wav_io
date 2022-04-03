@@ -150,7 +150,7 @@ fn command_info(cmd: CommandOpt) {
         writer::to_file(&mut file_out, &wav).unwrap();
         // add to object
         json += &format!("{{ \"no\":{}, \"file\":\"{}\", \"start\":{}, \"end\":{} }}", i, name, range.start, range.end);
-        if i != range_vec.len() - 1 { json += ","; }
+        if i != range_vec.len() - 1 { json += ",\n"; } else { json += "\n"; }
     }
     json += "]";
     // save split info

@@ -12,14 +12,16 @@ pub struct WavSplitOption {
     pub margin_sec: f32,
     pub min_silence_level: f32,
     pub min_silence_duration: f32,
+    pub min_keep_duration: f32,
 }
 impl WavSplitOption {
     pub fn new() -> Self {
         Self {
             use_margin: true,
-            margin_sec: 0.1,
-            min_silence_level: 0.05, // 0.05
-            min_silence_duration: 0.5, // about 0.4 - 0.7
+            margin_sec: 0.01, // 0.03
+            min_silence_level: 0.001, // 0.3, 0.002, 0.001
+            min_silence_duration: 1.4, // 0.4 - 0.7, 1.4, 1.8
+            min_keep_duration: 0.3,
         }
     }
 }
@@ -45,7 +47,6 @@ fn get_max(a: isize, b: isize) -> isize {
 /// Status for Splitter
 #[derive(Debug,Clone,PartialEq)]
 enum SplitStatus {
-    FirstSilence,
     Silence,
     LoudSound,
     FindingSilence,
@@ -53,17 +54,20 @@ enum SplitStatus {
 
 /// split wave data
 pub fn split_samples(samples: &mut Vec<f32>, sample_rate: u32, opt: &WavSplitOption) -> Vec<WavSplitRange> {
-    let th_silence = opt.min_silence_level;
-    let min_silence_duration = opt.min_silence_duration;
+    let min_silence_level = opt.min_silence_level;
+    let min_silence_duration_length = (sample_rate as f32 * opt.min_silence_duration) as usize;
+    let min_keep_duration_length = (sample_rate as f32 * opt.min_keep_duration) as usize;
 
     let mut result_vec = vec![];
 
     let mut max_val = 0.0;
-    let mut si_start = 0;
-    let mut last = 0;
-    let min_length = ((30.0 / 441000.0) * sample_rate as f32) as usize;
+    let mut silence_start = 0;
+    let mut loud_start = 0;
 
-    let mut go_split = |i_begin: usize, i_end: usize| {
+    let check_size = 100;
+ 
+    // append sub samples
+    let mut append_sub_smples = |i_begin: usize, i_end: usize| {
         let i_margin = if opt.use_margin {
             (opt.margin_sec * sample_rate as f32).floor() as usize
         } else { 0 };
@@ -71,67 +75,69 @@ pub fn split_samples(samples: &mut Vec<f32>, sample_rate: u32, opt: &WavSplitOpt
         let i_begin_margin = get_max(0, i_begin as isize - i_margin as isize) as usize;
         let i_end_margin = i_end;
         let new_size = i_end_margin - i_begin_margin + 1;
-        if new_size < min_length { return }
-        // println!("split={}", i_begin);
+        if new_size < min_keep_duration_length { return } // Ignore because it is too short.
         // result
-        let r = WavSplitRange {
-            start: i_begin_margin,
-            end: i_end_margin,
-            // start_nanotime: i_begin_margin / sample_rate as usize,
-            // end_nanotime: i_end_margin / sample_rate as usize,
-        };
+        let r = WavSplitRange{start: i_begin_margin, end: i_end_margin};
         result_vec.push(r);
     };
 
+    // normalize
     normalize(samples);
+    // calc range sample
+    let get_rms = |i:usize, size: usize| -> f32 {
+        // let size2 = size / 2;
+        let size2 = size;
+        let from_i:usize = if i < size2 { 0 } else { i - size2 };
+        let mut to_i:usize = from_i + size;
+        if samples.len() < to_i { to_i = samples.len(); }
+        let mut total = 0.0;
+        for j in from_i..to_i {
+            let v:f32 = samples[j].clone();
+            let v = v.abs();
+            total += v;
+        }
+        total / size as f32
+    };
 
-    let mut status: SplitStatus = SplitStatus::FirstSilence;
-    
+    // check all samples
+    let mut status: SplitStatus = SplitStatus::Silence;    
     for (i, v) in samples.iter().enumerate() {
         let av = v.abs();
         if av > max_val { max_val = av; }
+        let av = get_rms(i, check_size);
         
         match status {
-            SplitStatus::FirstSilence => {
-                // silence ended?
-                if av > th_silence {
-                    //println!("First silence end={}", i);
-                    last = i;
-                    status = SplitStatus::LoudSound;
-                }
-            },
             SplitStatus::Silence => {
                 // silence ended?
-                if av > th_silence {
-                    //println!("silence end={}", i);
+                if av > min_silence_level {
+                    loud_start = i;
                     status = SplitStatus::LoudSound;
                 }
             },
             SplitStatus::LoudSound => {
                 // Find silence start
-                if av < th_silence {
-                    si_start = i;
+                if av < min_silence_level {
+                    silence_start = i;
                     status = SplitStatus::FindingSilence;
                 }
             },
             SplitStatus::FindingSilence => {
                 // Check silence length
-                if av > th_silence {
-                    let duration = (i - si_start) as f32 / sample_rate as f32;
-                    if duration > min_silence_duration {
-                        go_split(last, i - 1);
-                        last = i;
-                        status = SplitStatus::Silence;
-                        si_start = 0;
+                if av > min_silence_level {
+                    let duration = i - silence_start;
+                    if duration > min_silence_duration_length {
+                        append_sub_smples(loud_start, i - 1);
+                        loud_start = i;
+                        status = SplitStatus::LoudSound;
+                        silence_start = 0;
                     }
                 }
-            }
+            },
         }
-        //println!("@{:02}:status={:?}", i, status);
     }
     // last wav?
-    if (samples.len() - last) > min_length {
-        go_split(last, samples.len() - 1);
+    if (samples.len() - loud_start) > min_keep_duration_length {
+        append_sub_smples(loud_start, samples.len() - 1);
     }
 
     result_vec
