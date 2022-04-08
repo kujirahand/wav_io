@@ -169,7 +169,7 @@ mod tests {
         let mut samples = vec![];
         let opt = tone::ToneOptions::new();
         header.sample_rate = opt.sample_rate;
-        tone::write_mml(&mut samples, "l4 grer c1", &opt);
+        tone::write_mml(&mut samples, "l1 grrr errr c1", &opt);
         let mut file_out = File::create(wavfile).unwrap();
         writer::to_file(&mut file_out, &WavData{header, samples}).unwrap();
         // read melody
