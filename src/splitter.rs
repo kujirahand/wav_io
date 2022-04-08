@@ -1,5 +1,4 @@
 /// Wav file Splitter
-
 #[derive(Debug,Copy, Clone,PartialEq)]
 pub struct WavSplitRange {
     pub start: usize,
@@ -8,6 +7,7 @@ pub struct WavSplitRange {
 
 #[derive(Debug,Copy, Clone,PartialEq)]
 pub struct WavSplitOption {
+    pub is_debug: bool,
     pub min_silence_level: f32,
     pub min_silence_duration: f32,
     pub min_keep_duration: f32,
@@ -15,7 +15,8 @@ pub struct WavSplitOption {
 impl WavSplitOption {
     pub fn new() -> Self {
         Self {
-            min_silence_level: 0.25,
+            is_debug: true,
+            min_silence_level: 0.25, // 0.25,
             min_silence_duration: 0.07,
             min_keep_duration: 0.01,
         }
@@ -23,17 +24,20 @@ impl WavSplitOption {
 }
 
 /// normalize samples
-pub fn normalize_i(samples: &mut Vec<f32>) -> Vec<isize> { // -32768 to 32767
-    let mut result: Vec<isize> = Vec::with_capacity(samples.len());
-    let mut max = 0.0;
+pub fn normalize_i(samples: &mut Vec<f32>) -> Vec<i16> {
+    let mut result: Vec<i16> = Vec::with_capacity(samples.len());
+    let imax = std::i16::MAX as f32;
+    // get max value
+    let mut max: f32 = 0.0;
     for v in samples.iter() {
         let av = v.abs();
-        if av > max { max = av; } 
+        if av > max { max = av; }
     }
-    let r = 1.0 / max;
+    // mul
+    let r = 1.0 / max as f32;
     for i in 0..samples.len() {
         let v = r * samples[i];
-        let iv = (v * 32767f32) as isize;
+        let iv = (v * imax) as i16;
         result.push(iv);
     }
     result
@@ -68,21 +72,27 @@ pub fn split_samples(samples: &mut Vec<f32>, sample_rate: u32, opt: &WavSplitOpt
     let min_keep_len = (sample_rate as f32 * opt.min_keep_duration) as usize;
     let mut result_vec = vec![];
     let samples_len = samples.len();
-    //println!("silence_thresh={}",silence_thresh);
-    //println!("min_silence_len={}",min_silence_len);
-    //println!("min_keep_len={}",min_keep_len);
-
+    if opt.is_debug {
+        println!("silence_thresh={}",silence_thresh);
+        println!("min_silence_len={}",min_silence_len);
+        println!("min_keep_len={}",min_keep_len);
+    }
     // normalize
     let samples = normalize_i(samples);
-    let mut out_ranges = detect_nonsilent(&samples, min_silence_len, silence_thresh);
+    if opt.is_debug {
+        println!("normalized={}", samples.len());
+    }
+    let mut out_ranges = detect_nonsilent(&samples, min_silence_len, silence_thresh, opt.is_debug);
     if out_ranges.len() == 0 {
         return vec![WavSplitRange{start:0, end:samples_len}];
     }
+    if opt.is_debug { println!("detect_nonsilent/len={}", out_ranges.len()); }
     // check margin
     for i in 0..out_ranges.len() {
         out_ranges[i].0 = get_max(0, out_ranges[i].0 as isize - min_keep_len as isize) as usize;
         out_ranges[i].1 = get_min(samples_len as isize, out_ranges[i].1 as isize + min_keep_len as isize) as usize;
     }
+    if opt.is_debug { println!("checked margin"); }
     for i in 0..(out_ranges.len() - 1) {
         let last_end = out_ranges[i].1;
         let next_start = out_ranges[i+1].0;
@@ -95,56 +105,70 @@ pub fn split_samples(samples: &mut Vec<f32>, sample_rate: u32, opt: &WavSplitOpt
         result_vec.push(WavSplitRange{
             start: r.0,
             end: r.1,
-        })
+        });
+        if opt.is_debug {
+            println!("- split={}s to {}s", r.0 as f32 / 11600.0, r.1 as f32 / 11600.0);
+        }
     }
+    if opt.is_debug { println!("result={:?}", result_vec); }
     result_vec
 }
 
 #[allow(dead_code)]
-fn calc_rms(samples: &Vec<isize>, start:usize, size: usize) -> f32 {
-    let last = start + size;
-    let mut total: isize = 0;
-    for i in start..last {
-        let v = samples[i].abs();
-        total += v as isize * v as isize;
-    }
-    ((total / size as isize) as f32).sqrt()
-}
-
-pub fn calc_rms2_prepare(samples: &Vec<isize>) -> Vec<isize> {
-    let mut result: Vec<isize> = Vec::with_capacity(samples.len());
+pub fn calc_rms2_prepare(samples: &Vec<i32>) -> Vec<i32> {
+    let mut result: Vec<i32> = Vec::with_capacity(samples.len());
     for i in 0..samples.len() {
-        let v = samples[i].abs();
-        result.push(v * v);
+        let v:i32 = samples[i];
+        let vv:i32 = v.wrapping_mul(v);
+        result.push(vv);
     }
     result
 }
-fn calc_rms2(samples: &Vec<isize>, start:usize, size: usize) -> f32 {
+
+#[allow(dead_code)]
+fn calc_rms2_i(samples: &Vec<i32>, start:usize, size: usize) -> f32 {
     let last = start + size;
     let mut total: isize = 0;
     for i in start..last {
-        total += samples[i];
+        total += samples[i] as isize;
     }
-    ((total / size as isize) as f32).sqrt()
+    if total == 0 { return 0.0; }
+    ((total as usize / size) as f32).sqrt()
 }
 
+#[allow(dead_code)]
+fn calc_rms(samples: &Vec<i16>, start:usize, size: usize) -> i16 {
+    let last = start + size;
+    let mut total: isize = 0;
+    for i in start..last {
+        let v = samples[i] as isize;
+        let v2 = v * v;
+        total += v2;
+    }
+    ((total / size as isize) as f32).sqrt() as i16
+}
 
-fn detect_silence(samples: &Vec<isize>, min_silence_len: usize, silence_thresh: f32) -> Vec<(usize,usize)> {
+fn detect_silence(samples: &Vec<i16>, min_silence_len: usize, silence_thresh: f32, is_debug: bool) -> Vec<(usize,usize)> {
     let mut result: Vec<(usize, usize)> = vec![];
     let samples_len = samples.len();
     if samples_len < min_silence_len { return result; }
     let last_silene_start = samples_len - min_silence_len;
     let check_range = 0..=last_silene_start;
+    let step = 2;
+    let silence_thresh_i = (silence_thresh * std::i16::MAX as f32) as i16;
+    if is_debug { println!("@@ detect_silence/silence_thresh_i={}/{}", silence_thresh_i, std::i16::MAX); }
     let mut silence_starts:Vec<usize> = Vec::with_capacity(samples_len);
-    //println!("@@ calc_rms");
-    let samples_p = calc_rms2_prepare(samples);
+    //
     for i in check_range {
-        let rms = calc_rms2(&samples_p, i, min_silence_len);
-        if rms <= silence_thresh {
+        if i % step != 0 { continue; }
+        let rms = calc_rms(&samples, i, min_silence_len);
+        if rms <= silence_thresh_i {
             silence_starts.push(i);
+            // if is_debug { println!("@@ silence={} : {}/{}", i, rms, silence_thresh_i); }
         }
     }
     if silence_starts.len() == 0 { return result; }
+    if is_debug { println!("@@ calc_rms.end/len={}", silence_starts.len()); }
     
     let mut prev_i = silence_starts[0];
     let mut cur_range_start = prev_i;
@@ -159,23 +183,24 @@ fn detect_silence(samples: &Vec<isize>, min_silence_len: usize, silence_thresh: 
         prev_i = silent_i;
     }
     result.push((cur_range_start, prev_i + min_silence_len));
-    /*
-    for r in result.iter() {
-        println!("silences={},{}", r.0 as f32 / 11600.0, r.1 as f32 / 11600.0);
+    if is_debug {
+        for r in result.iter() {
+            println!("- detect_silence/split={}s to {}s", r.0 as f32 / 11600.0, r.1 as f32 / 11600.0);
+        }
     }
-    */
     result
 }
 
-fn detect_nonsilent(samples: &Vec<isize>, min_silence_len: usize, silence_thresh: f32) -> Vec<(usize, usize)> {
+fn detect_nonsilent(samples: &Vec<i16>, min_silence_len: usize, silence_thresh: f32, is_debug: bool) -> Vec<(usize, usize)> {
     let mut result: Vec<(usize, usize)> = vec![];
     let samples_len = samples.len();
-    //println!("@@detect_silent");
-    let silent_ranges = detect_silence(samples, min_silence_len, silence_thresh);
+    if is_debug { println!("@@detect_silent.begin"); }
+    let silent_ranges = detect_silence(samples, min_silence_len, silence_thresh, is_debug);
     if silent_ranges.len() == 0 {
         result.push((0, samples_len));
         return result;
     }
+    if is_debug { println!("@@detect_silent.end"); }
     // whole audio is silent?
     if silent_ranges[0].0 == 0 && silent_ranges[0].1 == samples_len {
         return result;

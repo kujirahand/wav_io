@@ -59,6 +59,9 @@ fn main() {
     if cmd.command == "split" {
         return command_split(cmd);
     }
+    if cmd.command == "resample" {
+        return command_resample(cmd);
+    }
     if cmd.command == "?" || cmd.command == "help" {
         return show_help();
     }
@@ -159,6 +162,32 @@ fn command_info(cmd: CommandOpt) {
     write!(file, "{}", json).unwrap();
 }
 
+fn command_resample(cmd: CommandOpt) {
+    if cmd.is_debug {
+        println!("{:?}", cmd);
+    }
+    if cmd.filename == None || cmd.arg1 == None || cmd.arg2 == None {
+        println!("[Usage] wav_io resample [in] [rate] [out]");
+        return;
+    }
+    // get path
+    let infile = cmd.filename.unwrap();
+    let rate_str = cmd.arg1.unwrap();
+    let outfile = cmd.arg2.unwrap();
+    let new_sample_rate:u32 = rate_str.parse().unwrap_or(0);
+    if new_sample_rate < 100 {
+        println!("[Error] sample_rate must be over 100");
+        return;
+    }
+    let file_in = std::fs::File::open(infile).unwrap();
+    let mut wav = reader::from_file(file_in).unwrap();
+    let mut file_out = std::fs::File::create(outfile).unwrap();
+    let samples = resample::linear(wav.samples, wav.header.channels, wav.header.sample_rate, new_sample_rate);
+    wav.header.sample_rate = new_sample_rate;
+    writer::to_file(&mut file_out, &header::WavData{header:wav.header, samples}).unwrap();
+    println!("ok.");
+}
+
 fn show_help() {
     println!("*--- * --- * --- * --- * ---*");
     println!("| wav_io <command>");
@@ -168,5 +197,6 @@ fn show_help() {
     println!("wav_io info [file]           show file info");
     println!("wav_io mml [file] [mml]      write melody by mml");
     println!("wav_io split [file] [outdir] split wav by silence");
+    println!("wav_io resample [in] [rate] [out] resample av file");
 }
 
