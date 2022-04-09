@@ -7,7 +7,7 @@ use std::fs::File;
 const ERR_UNSUPPORTED_FORMAT: &str = "unsupported wav format";
 const ERR_IO_ERROR: &str = "io error";
 
-/// write wav to file
+/// WavData to file
 pub fn to_file(file_out: &mut File, wav: &WavData) -> Result<(), &'static str> {
     let mut w = Writer::new();
     match w.from_scratch(&wav.header, &wav.samples) {
@@ -20,6 +20,8 @@ pub fn to_file(file_out: &mut File, wav: &WavData) -> Result<(), &'static str> {
     }
     Ok(())
 }
+
+/// Samples: Vec<i16> to file
 pub fn i16samples_to_file(file_out: &mut File, header: &WavHeader, samples: &Vec<i16>) -> Result<(), &'static str> {
     let mut w = Writer::new();
     match w.from_scratch_i16(header, samples) {
@@ -32,6 +34,8 @@ pub fn i16samples_to_file(file_out: &mut File, header: &WavHeader, samples: &Vec
     }
     Ok(())
 }
+
+/// Samples: Vec<i32> to file
 pub fn i32samples_to_file(file_out: &mut File, header: &WavHeader, samples: &Vec<i32>) -> Result<(), &'static str> {
     let mut w = Writer::new();
     match w.from_scratch_i(header, samples) {
@@ -44,6 +48,8 @@ pub fn i32samples_to_file(file_out: &mut File, header: &WavHeader, samples: &Vec
     }
     Ok(())
 }
+
+/// Samples: Vec<f32> to file
 pub fn f32samples_to_file(file_out: &mut File, header: &WavHeader, samples: &Vec<f32>) -> Result<(), &'static str> {
     let mut w = Writer::new();
     match w.from_scratch(header, samples) {
@@ -57,17 +63,19 @@ pub fn f32samples_to_file(file_out: &mut File, header: &WavHeader, samples: &Vec
     Ok(())
 }
 
-/// Writer for binary
+/// Generate WAV file data
 pub struct Writer {
     cur: Cursor<Vec<u8>>,
 }
 
 impl Writer {
+    /// new struct
     pub fn new() -> Self {
         Self {
             cur: Cursor::new(Vec::<u8>::new())
         }
     }
+    /// write RIFF header
     pub fn write_riff_header(&mut self, head: &WavHeader, samples_len: u32) -> Result<(), &'static str> {
         let n_bytes = (head.bits_per_sample / 8) as u32;
         let data_size = n_bytes as u32 * samples_len as u32;
@@ -91,6 +99,7 @@ impl Writer {
         self.write_u16(head.bits_per_sample);
         Ok(())
     }
+    /// write sample to bytes
     pub fn from_scratch(&mut self, head: &WavHeader, samples: &Vec<f32>) -> Result<(), &'static str> {
         // calc data_size
         let n_bytes = (head.bits_per_sample / 8) as u32;
@@ -128,6 +137,7 @@ impl Writer {
         }
         Ok(())
     }
+    /// write sample(Vec<i32>) to bytes
     pub fn from_scratch_i(&mut self, head: &WavHeader, samples: &Vec<i32>) -> Result<(), &'static str> {
         // calc data_size
         let n_bytes = (head.bits_per_sample / 8) as u32;
@@ -171,7 +181,7 @@ impl Writer {
         Ok(())
     }
 
-    //todo: test save pcm 16bit
+    /// write sample(Vec<i16>) to bytes
     pub fn from_scratch_i16(&mut self, head: &WavHeader, samples: &Vec<i16>) -> Result<(), &'static str> {
         // calc data_size
         let n_bytes = (head.bits_per_sample / 8) as u32;
@@ -215,7 +225,7 @@ impl Writer {
         Ok(())
     }
 
-
+    /// write bytes to file
     pub fn to_file(&mut self, file: &mut File) -> Result<usize, std::io::Error> {
         let mut data:Vec<u8> = Vec::new();
         self.cur.set_position(0);

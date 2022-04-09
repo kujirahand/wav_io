@@ -18,21 +18,18 @@
 //! Write Wav file:
 //! 
 //! ```
-//! use std::fs::File;
 //! use std::f32::consts::PI;
-//! use wav_io::{writer, header::*};
 //! fn main() {
-//!     // header
-//!     let head = WavHeader::new_mono();
 //!     // make sine wave
+//!     let head = wav_io::new_mono_header();
 //!     let mut samples: Vec<f32> = vec![];
 //!     for t in 0..head.sample_rate {
 //!         let v = ((t as f32 / head.sample_rate as f32) * 440.0 * 2.0 * PI).sin() * 0.6;
 //!         samples.push(v);
 //!     }
 //!     // write to file
-//!     let mut file_out = File::create("./sine.wav").unwrap();
-//!     writer::f32samples_to_file(&mut file_out, &head, &samples).unwrap();
+//!     let mut file_out = std::fs::File::create("./sine.wav").unwrap();
+//!     wav_io::write_to_file(&mut file_out, &head, &samples).unwrap();
 //! }
 //! ```
 //! 
@@ -41,17 +38,16 @@
 //! ```
 //! use std::fs::File;
 //! use std::f32::consts::PI;
-//! use wav_io::{reader, header::*};
 //! fn main() {
 //!     // open file
 //!     let file_in = File::open("./sine.wav").unwrap();
 //!     // read from file
-//!     let wav = reader::from_file(file_in).unwrap();
+//!     let (head, samples) = wav_io::read_from_file(file_in).unwrap();
 //!     // show header info
-//!     println!("header={:?}", wav.header);
+//!     println!("header={:?}", head);
 //!     // show samples
-//!     println!("samples.len={}", wav.samples.len());
-//!     for (i, v) in wav.samples.iter().enumerate() {
+//!     println!("samples.len={}", samples.len());
+//!     for (i, v) in samples.iter().enumerate() {
 //!         println!("{}: {}v", i, v);
 //!         if (i > 32) { break; } // show first 32 samples
 //!     }
@@ -64,22 +60,6 @@
 //! use std::f32::consts::PI;
 //! use wav_io::{reader, writer, utils, resample, splitter, header::*, tone};
 //! fn main() {
-//!     // write tone
-//!     let header = WavHeader::new_mono();
-//!     let mut samples = vec![];
-//!     for t in 0..header.sample_rate {
-//!         let v = ((t as f32 / header.sample_rate as f32) * 440.0 * 2.0 * PI).sin() * 0.6;
-//!         samples.push(v);
-//!     }
-//!     let mut file_out = File::create("./tone.wav").unwrap();
-//!     writer::to_file(&mut file_out, &WavData{header, samples}).unwrap();
-//!     
-//!     // read wav file
-//!     let file_in = File::open("./tone.wav").unwrap();
-//!     let wav = reader::from_file(file_in).unwrap();
-//!     println!("header={:?}", wav.header);
-//!     println!("samples.len={}", wav.samples.len());
-//!     
 //!     // resample
 //!     let file_in = File::open("./tone.wav").unwrap();
 //!     let wav = reader::from_file(file_in).unwrap();
@@ -134,12 +114,43 @@ pub mod tone;
 /// Utilities
 pub mod utils;
 
+use header::*;
+
+/// new mono wav header
+pub fn new_mono_header() -> WavHeader {
+    WavHeader::new_mono()
+}
+/// new stereo wav header
+pub fn new_stereo_header() -> WavHeader {
+    WavHeader::new_stereo()
+}
+/// new wav header
+pub fn new_header(sample_rate:u32, bits_per_sample:u16, is_float:bool, is_mono:bool) -> WavHeader {
+    let mut h = WavHeader::new_mono();
+    h.sample_rate = sample_rate;
+    h.bits_per_sample = bits_per_sample;
+    h.sample_format = if is_float { SampleFormat::Float } else { SampleFormat::Int };
+    h.channels = if is_mono { 1 } else { 2 };
+    h
+}
+
+/// Read from Wav file
+pub fn read_from_file(file_in: std::fs::File) -> Result<(WavHeader, Vec<f32>), &'static str> {
+    match reader::from_file(file_in) {
+        Ok(wd) => { Ok((wd.header, wd.samples)) },
+        Err(e) => Err(e),
+    }
+}
+/// Write to Wav file
+pub fn write_to_file(file_out: &mut std::fs::File, header: &WavHeader, samples: &Vec<f32>) -> Result<(), &'static str> {
+    writer::f32samples_to_file(file_out, header, samples)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use std::fs::File;
     use std::f32::consts::PI;
-    use header::*;
     
     #[test]
     fn write_tone() {

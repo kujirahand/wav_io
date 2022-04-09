@@ -1,7 +1,5 @@
 /// Wav file reader
-/// 
-/// 
-/// 
+
 use std::fs::File;
 use std::io::{Cursor, Read};
 use crate::header::*;
