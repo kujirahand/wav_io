@@ -1,5 +1,7 @@
 //! # wav_io
-//! This crate reads and writes WAV files.
+//! Utilities for WAV files 
+//! 
+//! This crate can read, write, split, resample WAV files
 //! 
 //! # Supported format
 //! - PCM 8, 16, 24, 32 bits Int
@@ -8,10 +10,55 @@
 //! # Functoins
 //! - read & write
 //! - resample
-//! - split
+//! - split by silence
 //! - make sine wave & MML (music macro language)
 //! 
-//! ## Example
+//! ## Quick Start
+//! 
+//! Write Wav file:
+//! 
+//! ```
+//! use std::fs::File;
+//! use std::f32::consts::PI;
+//! use wav_io::{writer, header::*};
+//! fn main() {
+//!     // header
+//!     let head = WavHeader::new_mono();
+//!     // make sine wave
+//!     let mut samples: Vec<f32> = vec![];
+//!     for t in 0..head.sample_rate {
+//!         let v = ((t as f32 / head.sample_rate as f32) * 440.0 * 2.0 * PI).sin() * 0.6;
+//!         samples.push(v);
+//!     }
+//!     // write to file
+//!     let mut file_out = File::create("./sine.wav").unwrap();
+//!     writer::f32samples_to_file(&mut file_out, &head, &samples).unwrap();
+//! }
+//! ```
+//! 
+//! Read Wav file:
+//! 
+//! ```
+//! use std::fs::File;
+//! use std::f32::consts::PI;
+//! use wav_io::{reader, header::*};
+//! fn main() {
+//!     // open file
+//!     let file_in = File::open("./sine.wav").unwrap();
+//!     // read from file
+//!     let wav = reader::from_file(file_in).unwrap();
+//!     // show header info
+//!     println!("header={:?}", wav.header);
+//!     // show samples
+//!     println!("samples.len={}", wav.samples.len());
+//!     for (i, v) in wav.samples.iter().enumerate() {
+//!         println!("{}: {}v", i, v);
+//!         if (i > 32) { break; } // show first 32 samples
+//!     }
+//! }
+//! ```
+//! 
+//! ## Other Example
 //! ```
 //! use std::fs::File;
 //! use std::f32::consts::PI;
@@ -48,12 +95,12 @@
 //!     let mut samples = vec![];
 //!     let opt = tone::ToneOptions::new();
 //!     header.sample_rate = opt.sample_rate;
-//!     tone::write_mml(&mut samples, "l4 cege cege cege c1", &opt);
+//!     tone::write_mml(&mut samples, "l4 cegr rdfr egrr c1", &opt);
 //!     let mut file_out = File::create("./melody.wav").unwrap();
 //!     writer::to_file(&mut file_out, &WavData{header, samples}).unwrap();
 //! 
 //!     // split
-//!    let file_in = File::open("./test.wav").unwrap();
+//!    let file_in = File::open("./melody.wav").unwrap();
 //!    let mut wav = reader::from_file(file_in).unwrap();
 //!    let mut samples = wav.samples;
 //!    if wav.header.channels >= 2 {
@@ -72,13 +119,20 @@
 //! }
 //"" ```
 
+/// Wav file header
 pub mod header;
+/// Wav file Reader
 pub mod reader;
+/// Wav file Writer
 pub mod writer;
-pub mod utils;
+/// Wav file Resampler
 pub mod resample;
+/// Wav file Splitter
 pub mod splitter;
+/// Tone Generator
 pub mod tone;
+/// Utilities
+pub mod utils;
 
 #[cfg(test)]
 mod tests {

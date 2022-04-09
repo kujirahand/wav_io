@@ -1,12 +1,15 @@
-/// wav file header
+/// WAV file Header
 
-/*
-const SAMPLE_RATE_CD: u32 = 44_100;
-const SAMPLE_RATE_DVD_AUDIO: u32 = 48_000;
-const SAMPLE_RATE_AM_RADIO: u32 = 22_000;
-const SAMPLE_RATE_FM_AUDIO: u32 = 32_000;
-const SAMPLE_RATE_TEL: u32 = 8_000;
-*/
+/// Sample Rate - CD
+pub const SAMPLE_RATE_CD: u32 = 44_100;
+/// Sample Rate - DVD Audio
+pub const SAMPLE_RATE_DVD_AUDIO: u32 = 48_000;
+/// Sample Rate - AM Radio
+pub const SAMPLE_RATE_AM_RADIO: u32 = 22_000;
+/// Sample Rate - FM Radio
+pub const SAMPLE_RATE_FM_AUDIO: u32 = 32_000;
+/// Sample Rate - Tel
+pub const SAMPLE_RATE_TEL: u32 = 8_000;
 
 /// Sample Format
 #[derive(Debug,Copy,Clone,PartialEq)]
@@ -32,6 +35,30 @@ impl WavHeader {
     pub fn new() -> Self {
         Self::new_mono()
     }
+    pub fn new_mono_i16_cd() -> Self {
+        Self {
+            sample_format: SampleFormat::Int,
+            channels: 1,
+            sample_rate: SAMPLE_RATE_CD,
+            bits_per_sample: 16,
+        }
+    }
+    pub fn new_mono_i16_radio() -> Self {
+        Self {
+            sample_format: SampleFormat::Int,
+            channels: 1,
+            sample_rate: SAMPLE_RATE_AM_RADIO,
+            bits_per_sample: 16,
+        }
+    }
+    pub fn new_mono_f32_cd() -> Self {
+        Self {
+            sample_format: SampleFormat::Float,
+            channels: 1,
+            sample_rate: SAMPLE_RATE_CD,
+            bits_per_sample: 32,
+        }
+    }
     pub fn new_mono() -> Self {
         Self {
             sample_format: SampleFormat::Float,
@@ -44,7 +71,7 @@ impl WavHeader {
         Self {
             sample_format: SampleFormat::Float,
             channels: 2,
-            sample_rate: 44100,
+            sample_rate: SAMPLE_RATE_CD,
             bits_per_sample: 32,
         }
     }
