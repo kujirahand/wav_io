@@ -85,6 +85,7 @@ pub fn split_samples(samples: &mut Vec<f32>, sample_rate: u32, opt: &WavSplitOpt
         println!("min_keep_len={}", min_keep_len);
         println!("rms_size={}", rms_size);
     }
+    if samples_len == 0 { return result; }
     // normalize
     let samples = normalize_i(samples);
     if opt.is_debug {
@@ -112,7 +113,7 @@ pub fn split_samples(samples: &mut Vec<f32>, sample_rate: u32, opt: &WavSplitOpt
 
     // detect silence
     let mut si_vec:Vec<(usize,usize)> = vec![];
-    let mut status: i16 = v_on;
+    let mut status: i16 = v_off;
     let mut last: usize = 0;
     for i in 0..samples_len {
         let v = th_vec[i];
@@ -134,19 +135,22 @@ pub fn split_samples(samples: &mut Vec<f32>, sample_rate: u32, opt: &WavSplitOpt
         si_vec.push((last, samples_len));
     }
     if opt.is_debug {
-        println!("{:?}", si_vec);
+        println!("silence={:?}", si_vec);
     }
     if si_vec.len() == 0 { return result; }
 
-    // silence to wav
-    let mut last = si_vec[0].1;
-    for (i, r) in si_vec.iter().enumerate() {
-        if i == 0 { continue; }
+    // reverse silence
+    let mut last = 0;
+    for r in si_vec.iter() {
         let len = r.0 as isize - last as isize;
         if len < min_keep_len as isize { continue; }
-        let res = WavSplitRange{ start: last, end: r.1 };
+        let res = WavSplitRange{start: last, end: r.1};
         result.push(res);
         last = r.1;
+    }
+    let len = samples_len - last;
+    if len > min_keep_len {
+        result.push(WavSplitRange{start: last, end: samples_len});
     }
 
     // margin
