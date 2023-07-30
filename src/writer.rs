@@ -21,6 +21,16 @@ pub fn to_file(file_out: &mut File, wav: &WavData) -> Result<(), &'static str> {
     Ok(())
 }
 
+/// WavData to bytes
+pub fn to_bytes(head: &WavHeader, samples: &Vec<f32>) -> Result<Vec<u8>, &'static str> {
+    let mut w = Writer::new();
+    match w.from_scratch(head, samples) {
+        Err(err) => return Err(err),
+        Ok(_) => {},
+    }
+    Ok(w.to_bytes())
+}
+
 /// Samples: Vec<i16> to file
 pub fn i16samples_to_file(file_out: &mut File, header: &WavHeader, samples: &Vec<i16>) -> Result<(), &'static str> {
     let mut w = Writer::new();
@@ -232,7 +242,15 @@ impl Writer {
         self.cur.read_to_end(&mut data).unwrap();
         file.write(&data)
     }
-        
+
+    /// write bytes to Vec<u8>
+    pub fn to_bytes(&mut self) -> Vec<u8> {
+        let mut data:Vec<u8> = Vec::new();
+        self.cur.set_position(0);
+        self.cur.read_to_end(&mut data).unwrap();
+        data
+    }
+
     pub fn write_str(&mut self, tag: &str) {
         let bytes:Vec<u8> = tag.bytes().collect();
         self.cur.write(&bytes).unwrap();
@@ -326,5 +344,32 @@ mod tests {
         assert_eq!(b[0], 254);
         assert_eq!(b[1], 255);
         assert_eq!(b[2], 255);
+    }
+
+    #[test]
+    fn write_to_bytes() {
+        let mut samples = Vec::new();
+        samples.push(0.0);
+        samples.push(0.0);
+        let head = WavHeader::new_mono();
+        let mut w = Writer::new();
+        match w.from_scratch(&head, &samples) {
+            Ok(_) => {
+                let data = w.to_bytes();
+                assert_eq!(data.len(), 52);
+            },
+            Err(e) => {
+                println!("error: {}", e);
+            }
+        }
+
+        match to_bytes(&head, &samples) {
+            Ok(data) => {
+                assert_eq!(data.len(), 52);
+            },
+            Err(e) => {
+                println!("error: {}", e);
+            }
+        }
     }
 }
