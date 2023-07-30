@@ -115,7 +115,7 @@ pub mod tone;
 pub mod utils;
 
 use header::*;
-use writer::{Writer, to_bytes};
+use writer::to_bytes;
 
 /// new mono wav header
 pub fn new_mono_header() -> WavHeader {
