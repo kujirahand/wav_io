@@ -75,6 +75,12 @@ impl WavHeader {
             bits_per_sample: 32,
         }
     }
+    pub fn set_int_format(&mut self) {
+        self.sample_format = SampleFormat::Int;
+    }
+    pub fn set_float_format(&mut self) {
+        self.sample_format = SampleFormat::Float;
+    }
 }
 
 /// Wav Data

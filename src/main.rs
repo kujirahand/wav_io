@@ -132,6 +132,7 @@ fn command_info(cmd: CommandOpt) {
     // read in file
     let file_in = std::fs::File::open(wavfile).unwrap();
     let mut wav = reader::from_file(file_in).unwrap();
+    println!("header={:?}", wav.header);
     // convert to mono
     let mut samples = wav.samples;
     if wav.header.channels >= 2 {
