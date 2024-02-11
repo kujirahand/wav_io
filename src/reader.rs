@@ -83,7 +83,9 @@ impl Reader {
         // fmt (skip LIST chunk)
         loop {
             let chunk_tag = self.read_str4();
-            if chunk_tag == "" { break; } // broken file
+            if chunk_tag == "" { // broken file | did not find fmt
+                return Err(ERR_BROKEN_WAV);
+            }
             // println!("[info] chunk_tag={}", chunk_tag);
             if chunk_tag == "fmt " { break; }
             // skip LIST chunk
