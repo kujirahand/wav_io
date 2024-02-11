@@ -155,6 +155,25 @@ pub fn write_to_bytes(head: &WavHeader, samples: &Vec<f32>) -> Result<Vec<u8>, &
     }
 }
 
+/// convert i16 to f32 samples
+pub fn convert_samples_i16_to_f32(samples: &Vec<i16>) -> Vec<f32> {
+    let mut samples_f32 = vec![];
+    for v in samples {
+        samples_f32.push(*v as f32 / std::i16::MAX as f32);
+    }
+    samples_f32
+}
+
+/// convert f32 to i16 samples
+pub fn convert_samples_f32_to_i16(samples: &Vec<f32>) -> Vec<i16> {
+    let mut samples_i16 = vec![];
+    for v in samples {
+        samples_i16.push((*v * std::i16::MAX as f32) as i16);
+    }
+    samples_i16
+}
+
+
 #[cfg(test)]
 mod tests {
     use super::*;
