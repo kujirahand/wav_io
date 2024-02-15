@@ -83,6 +83,11 @@ impl Reader {
         if  wave_tag != "WAVE" {
             return Err(ERR_INVALID_FORMAT);
         }
+
+        // check for a possible LIST chunk
+        // if there is one, skip it
+        let _ = self.read_list_chunk();
+
         // fmt
         let fmt_tag = self.read_str4();
         if fmt_tag != "fmt " {
@@ -125,6 +130,10 @@ impl Reader {
         // println!("chunk_size={}",chunk_size);
         let pos = self.cur.position() + chunk_size as u64 - 16;
         self.cur.set_position(pos);
+
+        // check for a possible LIST chunk
+        // if there is one, skip it
+        let _ = self.read_list_chunk();
 
         // set to header
         self.header = Some(header);
