@@ -7,7 +7,10 @@ use crate::header::*;
 const ERR_INVALID_FORMAT: &str = "invalid wav format";
 const ERR_UNSUPPORTED_FORMAT: &str = "unsupported wav format";
 const ERR_BROKEN_WAV: &str = "broken wav file";
+const ERR_NOT_LIST_CHUNK: &str = "not a list chunk";
 const ERR_FILE_OPEN_ERROR: &str = "failed to open file";
+const ERR_UNSUPPORTED_SYSTEM: &str = "incompatible with systems lower than 32-bit";
+const ERR_GENERIC_READ_FAIL: &str = "unable to read data";
 
 /// Get header and samples from file
 pub fn from_file(file: File) -> Result<WavData, &'static str> {
@@ -80,17 +83,15 @@ impl Reader {
         if  wave_tag != "WAVE" {
             return Err(ERR_INVALID_FORMAT);
         }
-        // fmt (skip LIST chunk)
-        loop {
-            let chunk_tag = self.read_str4();
-            if chunk_tag == "" { // broken file | did not find fmt
-                return Err(ERR_BROKEN_WAV);
-            }
-            // println!("[info] chunk_tag={}", chunk_tag);
-            if chunk_tag == "fmt " { break; }
-            // skip LIST chunk
-            let chunk_size = self.read_u32().unwrap_or(0);
-            self.cur.set_position(self.cur.position() + chunk_size as u64);
+
+        // check for a possible LIST chunk
+        // if there is one, skip it
+        let _ = self.read_list_chunk();
+
+        // fmt
+        let fmt_tag = self.read_str4();
+        if fmt_tag != "fmt " {
+            return Err(ERR_INVALID_FORMAT);
         }
         let chunk_size = self.read_u32().unwrap_or(0);
         // audio format
@@ -130,9 +131,47 @@ impl Reader {
         let pos = self.cur.position() + chunk_size as u64 - 16;
         self.cur.set_position(pos);
 
+        // check for a possible LIST chunk
+        // if there is one, skip it
+        let _ = self.read_list_chunk();
+
         // set to header
         self.header = Some(header);
         Ok(header)
+    }
+
+    /// Read a LIST chunk
+    /// This function will only progres the internal data cursor when `Ok()` is returned
+    /// In the case of `Err()`, the cursor will not have moved
+    pub fn read_list_chunk(&mut self) -> Result<Vec<u8>, &'static str> {
+        // keep track of the position, in case we error, we can jump back
+        let begin_position = self.cur.position();
+
+        // check the tag
+        let info_tag = self.read_str4();
+        if info_tag != "LIST" {
+            self.cur.set_position(begin_position);
+            return Err(ERR_NOT_LIST_CHUNK);
+        }
+        // retrieve the info size and convert to an usize
+        let Some(read_size) = self.read_u32() else {
+            self.cur.set_position(begin_position);
+            return Err(ERR_INVALID_FORMAT)
+        };
+        let Ok(read_size) = read_size.try_into() else {
+            self.cur.set_position(begin_position);
+            return Err(ERR_UNSUPPORTED_SYSTEM)
+        };
+
+        // read the data and return it
+        let mut data = Vec::with_capacity(read_size);
+        match self.cur.read_exact(&mut data) {
+            Ok(_) => Ok(data),
+            Err(_) => {
+                self.cur.set_position(begin_position);
+                Err(ERR_GENERIC_READ_FAIL)
+            }
+        }
     }
 
     pub fn get_samples_f32(&mut self) -> Result<Vec<f32>, &'static str> {
