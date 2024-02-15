@@ -132,21 +132,36 @@ impl Reader {
     }
 
     /// Read a LIST chunk
+    /// This function will only progres the internal data cursor when `Ok()` is returned
+    /// In the case of `Err()`, the cursor will not have moved
     pub fn read_list_chunk(&mut self) -> Result<Vec<u8>, &'static str> {
+        // keep track of the position, in case we error, we can jump back
+        let begin_position = self.cur.position();
+
         // check the tag
         let info_tag = self.read_str4();
         if info_tag != "LIST" {
+            self.cur.set_position(begin_position);
             return Err(ERR_NOT_LIST_CHUNK);
         }
         // retrieve the info size and convert to an usize
-        let Some(read_size) = self.read_u32() else { return Err(ERR_INVALID_FORMAT) };
-        let Ok(read_size) = read_size.try_into() else { return Err(ERR_UNSUPPORTED_SYSTEM) };
+        let Some(read_size) = self.read_u32() else {
+            self.cur.set_position(begin_position);
+            return Err(ERR_INVALID_FORMAT)
+        };
+        let Ok(read_size) = read_size.try_into() else {
+            self.cur.set_position(begin_position);
+            return Err(ERR_UNSUPPORTED_SYSTEM)
+        };
 
         // read the data and return it
         let mut data = Vec::with_capacity(read_size);
         match self.cur.read_exact(&mut data) {
             Ok(_) => Ok(data),
-            Err(_) => Err(ERR_GENERIC_READ_FAIL)
+            Err(_) => {
+                self.cur.set_position(begin_position);
+                Err(ERR_GENERIC_READ_FAIL)
+            }
         }
     }
 
