@@ -80,17 +80,10 @@ impl Reader {
         if  wave_tag != "WAVE" {
             return Err(ERR_INVALID_FORMAT);
         }
-        // fmt (skip LIST chunk)
-        loop {
-            let chunk_tag = self.read_str4();
-            if chunk_tag == "" { // broken file | did not find fmt
-                return Err(ERR_BROKEN_WAV);
-            }
-            // println!("[info] chunk_tag={}", chunk_tag);
-            if chunk_tag == "fmt " { break; }
-            // skip LIST chunk
-            let chunk_size = self.read_u32().unwrap_or(0);
-            self.cur.set_position(self.cur.position() + chunk_size as u64);
+        // fmt
+        let fmt_tag = self.read_str4();
+        if fmt_tag != "fmt " {
+            return Err(ERR_INVALID_FORMAT);
         }
         let chunk_size = self.read_u32().unwrap_or(0);
         // audio format
