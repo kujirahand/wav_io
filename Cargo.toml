@@ -16,4 +16,5 @@ rustc-args = ["--cfg", "docsrs"]
 all-features = true
 
 [dependencies]
+thiserror = "1.0.57"
 
