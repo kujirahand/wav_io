@@ -136,7 +136,7 @@ pub fn new_header(sample_rate:u32, bits_per_sample:u16, is_float:bool, is_mono:b
 }
 
 /// Read from Wav file
-pub fn read_from_file(file_in: std::fs::File) -> Result<(WavHeader, Vec<f32>), &'static str> {
+pub fn read_from_file(file_in: std::fs::File) -> Result<(WavHeader, Vec<f32>), reader::DecodeError> {
     match reader::from_file(file_in) {
         Ok(wd) => { Ok((wd.header, wd.samples)) },
         Err(e) => Err(e),

@@ -4,16 +4,49 @@ use std::fs::File;
 use std::io::{Cursor, Read};
 use crate::header::*;
 
-const ERR_INVALID_FORMAT: &str = "invalid wav format";
-const ERR_UNSUPPORTED_FORMAT: &str = "unsupported wav format";
-const ERR_BROKEN_WAV: &str = "broken wav file";
-const ERR_NOT_LIST_CHUNK: &str = "not a list chunk";
-const ERR_FILE_OPEN_ERROR: &str = "failed to open file";
-const ERR_UNSUPPORTED_SYSTEM: &str = "incompatible with systems lower than 32-bit";
-const ERR_GENERIC_READ_FAIL: &str = "unable to read data";
+use thiserror::Error;
+
+#[derive(Error, Debug)]
+pub enum DecodeError {
+    #[error("Invalid chunk tag, expected '{expected:?}', found '{found:?}'")]
+    InvalidTag {
+        expected: &'static str,
+        found: String,
+    },
+    #[error("Invalid chunk attribute, attribute {attribute:?} must be greater than {expected:?}, found {found:?} instead")]
+    InvalidChunkAttribute {
+        attribute: &'static str,
+        expected: u32,
+        found: u32,
+    },
+    #[error("Invalid chunk attribute, attribute {attribute:?} must be on of {expected:?}, found {found:?}")]
+    InvalidChunkAttributeRange {
+        attribute: &'static str,
+        expected: &'static [u32],
+        found: u32,
+    },
+    #[error("Unsupported wav-format, attribute {attribute} must be one of {expected:?}, found {found:?}")]
+    UnsupportedWav {
+        attribute: &'static str,
+        expected: &'static [u32],
+        found: u32,
+    },
+    #[error("Failed to open file")]
+    FileOpen {
+        #[source]
+        source: std::io::Error,
+    },
+    #[error("Unsupported system, please use a 32-bit system or higher")]
+    UnsupportedSystem,
+    #[error("Unable to read data")]
+    ReadFail {
+        #[source]
+        source: std::io::Error,
+    },
+}
 
 /// Get header and samples from file
-pub fn from_file(file: File) -> Result<WavData, &'static str> {
+pub fn from_file(file: File) -> Result<WavData, DecodeError> {
     // read file
     let mut r: Reader = match Reader::from_file(file) {
         Err(err) => return Err(err),
@@ -33,10 +66,10 @@ pub fn from_file(file: File) -> Result<WavData, &'static str> {
 }
 
 /// Get header and samples from file path
-pub fn from_file_str(file_path: &str) -> Result<WavData, &'static str> {
+pub fn from_file_str(file_path: &str) -> Result<WavData, DecodeError> {
     let f = match File::open(file_path) {
         Ok(f) => f,
-        Err(_) => return Err(ERR_FILE_OPEN_ERROR),
+        Err(err) => return Err(DecodeError::FileOpen { source: err }),
     };
     from_file(f)
 }
@@ -48,17 +81,17 @@ pub struct Reader {
 }
 impl Reader {    
     /// Create Reader Object from wav file
-    pub fn from_file(file: File) -> Result<Reader, &'static str> {
+    pub fn from_file(file: File) -> Result<Reader, DecodeError> {
         let mut data: Vec<u8> = Vec::new();
         let mut f = file;
         match f.read_to_end(&mut data) {
             Ok(_) => {},
-            Err(_) => return Err("could not read from file"),
+            Err(err) => return Err(DecodeError::ReadFail { source: err }),
         };
         Self::from_vec(data)
     }
     /// Crate Reader Object from Vec
-    pub fn from_vec(data: Vec<u8>) -> Result<Reader, &'static str> {
+    pub fn from_vec(data: Vec<u8>) -> Result<Reader, DecodeError> {
         let reader = Reader {
             cur: Cursor::new(data),
             header: None,
@@ -66,22 +99,26 @@ impl Reader {
         Ok(reader)
     }
     /// Read Wav file header
-    pub fn read_header(&mut self) -> Result<WavHeader, &'static str> {
+    pub fn read_header(&mut self) -> Result<WavHeader, DecodeError> {
         let mut header = WavHeader::new();
         // RIFF header
         let riff_tag = self.read_str4();
         if riff_tag != "RIFF" {
-            return Err(ERR_INVALID_FORMAT);
+            return Err(DecodeError::InvalidTag { expected: "RIFF", found: riff_tag.to_string() });
         }
         // size
         let chunk_size = self.read_u32().unwrap_or(0);
         if chunk_size < 8 {
-            return Err(ERR_INVALID_FORMAT);
+            return Err(DecodeError::InvalidChunkAttribute {
+                attribute: "chunk size",
+                expected: 7,
+                found: chunk_size,
+            });
         }
         // should be WAVE
         let wave_tag = self.read_str4();
         if  wave_tag != "WAVE" {
-            return Err(ERR_INVALID_FORMAT);
+            return Err(DecodeError::InvalidTag { expected: "WAVE", found: riff_tag.to_string() });
         }
 
         // check for a possible LIST chunk
@@ -91,7 +128,7 @@ impl Reader {
         // fmt
         let fmt_tag = self.read_str4();
         if fmt_tag != "fmt " {
-            return Err(ERR_INVALID_FORMAT);
+            return Err(DecodeError::InvalidTag { expected: "fmt ", found: riff_tag.to_string() });
         }
         let chunk_size = self.read_u32().unwrap_or(0);
         // audio format
@@ -102,7 +139,11 @@ impl Reader {
             0x0006 => header.sample_format = SampleFormat::WaveFromatALaw,
             0x0007 => header.sample_format = SampleFormat::WaveFormatMuLaw,
             0xFFFE => header.sample_format = SampleFormat::SubFormat,
-            _ => return Err(ERR_UNSUPPORTED_FORMAT),
+            _ => return Err(DecodeError::InvalidChunkAttributeRange {
+                attribute: "format tag",
+                expected: &[0x0001, 0x0003, 0x0006, 0x0007, 0xFFFE],
+                found: format_tag as u32,
+            }),
         }
         // channels
         let ch = self.read_u16().unwrap_or(0);
@@ -112,19 +153,31 @@ impl Reader {
         // sample_rate
         header.sample_rate = self.read_u32().unwrap_or(0);
         if header.sample_rate < 32 {
-            return Err(ERR_INVALID_FORMAT);
+            return Err(DecodeError::InvalidChunkAttribute {
+                attribute: "sample rate",
+                expected: 31,
+                found: header.sample_rate,
+            });
         }
         // ave bytes per sec (sample_rate * bits * channels)
         let bytes_per_sec = self.read_u32().unwrap_or(0);
         if bytes_per_sec < 8 {
-            return Err(ERR_BROKEN_WAV);
+            return Err(DecodeError::InvalidChunkAttribute {
+                attribute: "bytes per second",
+                expected: 7,
+                found: header.sample_rate,
+            });
         }
         // nBlockAlign (channels * bits  / 8)
         let _data_block_size = self.read_u16().unwrap_or(0);
         // Bits per sample
         let bits_per_sample = self.read_u16().unwrap_or(0);
         if bits_per_sample < 8 {
-            return Err(ERR_BROKEN_WAV);
+            return Err(DecodeError::InvalidChunkAttribute {
+                attribute: "bits per sample",
+                expected: 7,
+                found: header.sample_rate,
+            });
         }
         header.bits_per_sample = bits_per_sample;
         // println!("chunk_size={}",chunk_size);
@@ -143,7 +196,7 @@ impl Reader {
     /// Read a LIST chunk
     /// This function will only progres the internal data cursor when `Ok()` is returned
     /// In the case of `Err()`, the cursor will not have moved
-    pub fn read_list_chunk(&mut self, header: &mut WavHeader) -> Result<usize, &'static str> {
+    pub fn read_list_chunk(&mut self, header: &mut WavHeader) -> Result<usize, DecodeError> {
         // keep track of the position, in case we error, we can jump back
         let begin_position = self.cur.position();
 
@@ -151,16 +204,19 @@ impl Reader {
         let info_tag = self.read_str4();
         if info_tag != "LIST" {
             self.cur.set_position(begin_position);
-            return Err(ERR_NOT_LIST_CHUNK);
+            return Err(DecodeError::InvalidTag {
+                expected: "LIST",
+                found: info_tag.to_string()
+            });
         }
         // retrieve the info size and convert to an usize
         let Some(read_size) = self.read_u32() else {
             self.cur.set_position(begin_position);
-            return Err(ERR_INVALID_FORMAT)
+            return Err(DecodeError::ReadFail { source: std::io::Error::new(std::io::ErrorKind::Other, "Unable to read u32") })
         };
         let Ok(read_size) = read_size.try_into() else {
             self.cur.set_position(begin_position);
-            return Err(ERR_UNSUPPORTED_SYSTEM)
+            return Err(DecodeError::UnsupportedSystem)
         };
 
         // read the data and return it
@@ -169,9 +225,9 @@ impl Reader {
             Ok(_) => {
                 Ok(self.analize_list_chunk(data, header))
             },
-            Err(_) => {
+            Err(err) => {
                 self.cur.set_position(begin_position);
-                Err(ERR_GENERIC_READ_FAIL)
+                Err(DecodeError::ReadFail { source: err })
             }
         }
     }
@@ -232,7 +288,7 @@ impl Reader {
         result
     }
 
-    pub fn get_samples_f32(&mut self) -> Result<Vec<f32>, &'static str> {
+    pub fn get_samples_f32(&mut self) -> Result<Vec<f32>, DecodeError> {
         let mut result:Vec<f32> = Vec::new();
         loop {
             // read chunks
@@ -266,7 +322,11 @@ impl Reader {
                                 result.push(lv as f32); // down to f32
                             }
                         },
-                        _ => return Err(ERR_UNSUPPORTED_FORMAT),
+                        _ => return Err(DecodeError::UnsupportedWav {
+                            attribute: "bits per float sample",
+                            expected: &[32, 64],
+                            found: h.bits_per_sample as u32,
+                        }),
                     }
                 },
                 // int
@@ -301,10 +361,18 @@ impl Reader {
                                 result.push(fv);
                             }
                         },
-                        _ => return Err(ERR_UNSUPPORTED_FORMAT),
+                        _ => return Err(DecodeError::UnsupportedWav {
+                            attribute: "bits per integer sample",
+                            expected: &[8, 16, 24, 32],
+                            found: h.bits_per_sample as u32,
+                        }),
                     }
                 },
-                _ => return Err(ERR_UNSUPPORTED_FORMAT),
+                _ => return Err(DecodeError::UnsupportedWav {
+                    attribute: "",
+                    expected: &[8, 16, 24, 32],
+                    found: h.bits_per_sample as u32,
+                }),
             }
         }
         Ok(result)
