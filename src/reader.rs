@@ -31,6 +31,8 @@ pub enum DecodeError {
         expected: &'static [u32],
         found: u32,
     },
+    #[error("Unsupported wav encoding, module only supports PCM data")]
+    UnsupportedEncoding,
     #[error("Failed to open file")]
     FileOpen {
         #[source]
@@ -368,11 +370,7 @@ impl Reader {
                         }),
                     }
                 },
-                _ => return Err(DecodeError::UnsupportedWav {
-                    attribute: "",
-                    expected: &[8, 16, 24, 32],
-                    found: h.bits_per_sample as u32,
-                }),
+                _ => return Err(DecodeError::UnsupportedEncoding),
             }
         }
         Ok(result)
