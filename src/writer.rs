@@ -107,6 +107,17 @@ impl Writer {
         self.write_u32(head.sample_rate * n_bytes * head.channels as u32);
         self.write_u16(n_bytes as u16 * head.channels);
         self.write_u16(head.bits_per_sample);
+        // has LIST header
+        match head.clone().list_chunk {
+            Some(list) => {
+                let block = list.make_block();
+                self.write_str("LIST");
+                self.write_u32(block.len() as u32 + 4);
+                self.write_str("INFO");
+                self.cur.write(&block).unwrap();
+            },
+            None => {},
+        }
         Ok(())
     }
     /// write sample to bytes

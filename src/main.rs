@@ -150,7 +150,7 @@ fn command_info(cmd: CommandOpt) {
         println!("- {}", fname);
         let mut file_out = std::fs::File::create(&fname).unwrap();
         let sub = splitter::sub_samples(&samples, *range);
-        let wav = header::WavData{header: wav.header, samples: sub};
+        let wav = header::WavData{header: wav.header.clone(), samples: sub};
         writer::to_file(&mut file_out, &wav).unwrap();
         // add to object
         json += &format!("{{ \"no\":{}, \"file\":\"{}\", \"start\":{}, \"end\":{} }}", i, name, range.start, range.end);

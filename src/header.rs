@@ -21,13 +21,56 @@ pub enum SampleFormat {
     SubFormat,
 }
 
+/// List Chunk Item
+#[derive(Debug,Clone,PartialEq)]
+pub struct ListChunkItem {
+    pub id: String,
+    pub value: String,
+}
+/// List Chunk Data
+#[derive(Debug,Clone,PartialEq)]
+pub struct ListChunk {
+    pub items: Vec<ListChunkItem>,
+}
+impl ListChunk {
+    pub fn make_block(&self) -> Vec<u8> {
+        let mut block = Vec::new();
+        for it in self.items.iter() {
+            // chunk tag
+            let chunk_tag_bytes = it.id.as_bytes();
+            let mut chunk_tag: [u8; 4] = [32u8; 4];
+            for (i, c) in chunk_tag_bytes.iter().enumerate() {
+                if i >= 4 { break; }
+                chunk_tag[i] = *c;
+            }
+            block.append(&mut chunk_tag.to_vec());
+            // chunk size
+            let mut flag_a = false;
+            let mut chunk_size: u32 = it.value.len() as u32 + 1;
+            if chunk_size % 2 != 0 {
+                chunk_size += 1;
+                flag_a = true;
+            }
+            block.append(&mut chunk_size.to_le_bytes().to_vec());
+            // chunk value
+            let bytes = it.value.as_bytes();
+            // println!("chunk_size={}::bytes={}", chunk_size, bytes.len());
+            block.append(&mut bytes.to_vec());
+            block.push(0); // null
+            if flag_a { block.push(0); }
+        }
+        block
+    }
+}
+
 /// Wav file header
-#[derive(Debug,Copy,Clone,PartialEq)]
+#[derive(Debug,Clone,PartialEq)]
 pub struct WavHeader {
     pub sample_format: SampleFormat, // pcm=1
     pub channels: u16, // mono=1, stereo=2
     pub sample_rate: u32, // 44100Hz etc
     pub bits_per_sample: u16,
+    pub list_chunk: Option<ListChunk>,
 }
 
 impl WavHeader {
@@ -41,6 +84,7 @@ impl WavHeader {
             channels: 1,
             sample_rate: SAMPLE_RATE_CD,
             bits_per_sample: 16,
+            list_chunk: None,
         }
     }
     pub fn new_mono_i16_radio() -> Self {
@@ -49,6 +93,7 @@ impl WavHeader {
             channels: 1,
             sample_rate: SAMPLE_RATE_AM_RADIO,
             bits_per_sample: 16,
+            list_chunk: None,
         }
     }
     pub fn new_mono_f32_cd() -> Self {
@@ -57,6 +102,7 @@ impl WavHeader {
             channels: 1,
             sample_rate: SAMPLE_RATE_CD,
             bits_per_sample: 32,
+            list_chunk: None,
         }
     }
     pub fn new_mono() -> Self {
@@ -65,6 +111,7 @@ impl WavHeader {
             channels: 1,
             sample_rate: 44100,
             bits_per_sample: 32,
+            list_chunk: None,
         }
     }
     pub fn new_stereo() -> Self {
@@ -73,6 +120,7 @@ impl WavHeader {
             channels: 2,
             sample_rate: SAMPLE_RATE_CD,
             bits_per_sample: 32,
+            list_chunk: None,
         }
     }
     pub fn set_int_format(&mut self) {
@@ -95,3 +143,4 @@ impl WavData {
         Self {header, samples}
     }
 }
+

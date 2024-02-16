@@ -86,7 +86,7 @@ impl Reader {
 
         // check for a possible LIST chunk
         // if there is one, skip it
-        let _ = self.read_list_chunk();
+        let _ = self.read_list_chunk(&mut header);
 
         // fmt
         let fmt_tag = self.read_str4();
@@ -133,17 +133,17 @@ impl Reader {
 
         // check for a possible LIST chunk
         // if there is one, skip it
-        let _ = self.read_list_chunk();
+        let _ = self.read_list_chunk(&mut header);
 
         // set to header
-        self.header = Some(header);
+        self.header = Some(header.clone());
         Ok(header)
     }
 
     /// Read a LIST chunk
     /// This function will only progres the internal data cursor when `Ok()` is returned
     /// In the case of `Err()`, the cursor will not have moved
-    pub fn read_list_chunk(&mut self) -> Result<Vec<u8>, &'static str> {
+    pub fn read_list_chunk(&mut self, header: &mut WavHeader) -> Result<usize, &'static str> {
         // keep track of the position, in case we error, we can jump back
         let begin_position = self.cur.position();
 
@@ -166,12 +166,70 @@ impl Reader {
         // read the data and return it
         let mut data = vec![0; read_size];
         match self.cur.read_exact(&mut data) {
-            Ok(_) => Ok(data),
+            Ok(_) => {
+                Ok(self.analize_list_chunk(data, header))
+            },
             Err(_) => {
                 self.cur.set_position(begin_position);
                 Err(ERR_GENERIC_READ_FAIL)
             }
         }
+    }
+
+    pub fn analize_list_chunk(&mut self, data: Vec<u8>, header: &mut WavHeader) -> usize {
+        let data_len = data.len() as u64;
+        let mut cur = Cursor::new(data);
+        // read tag
+        let mut chunk_tag = [0u8; 4];
+        let chunk_tag = match cur.read_exact(&mut chunk_tag) {
+            Ok(_) => String::from_utf8_lossy(&chunk_tag),
+            Err(_) => return 0, // ERROR LIST CHUNK
+        };
+        if chunk_tag != "INFO" {
+            return 0;
+        }
+        /*
+        // (ref) https://www.recordingblogs.com/wiki/list-chunk-of-a-wave-file
+        'IART' artist name
+        'INAM' name of the song
+        'IPRD' product name (album name)
+        'IGNR' genre
+        'ICMT' comment
+        'ITRK' track number
+        'ICRD' creation date
+        'ISFT' software
+        'ITOC' CDのTOC(Table of Contents)
+        */
+        let mut items = vec![];
+        let mut result = 0;
+        while cur.position() < data_len {
+            // read chunk tag
+            let mut chunk_tag = [0u8; 4];
+            let chunk_tag = match cur.read_exact(&mut chunk_tag) {
+                Ok(_) => String::from_utf8_lossy(&chunk_tag),
+                Err(_) => break,
+            };
+            // read info len
+            let mut chunk_size = [0u8; 4];
+            let chunk_size = match cur.read_exact(&mut chunk_size) {
+                Ok(_) => u32::from_le_bytes(chunk_size),
+                Err(_) => break,
+            };
+            let mut data = vec![0; chunk_size as usize];
+            let data = match cur.read_exact(&mut data) {
+                Ok(_) => String::from_utf8_lossy(&data),
+                Err(_) => break,
+            };
+            // println!("chunk_tag={:?}::{}::{}", chunk_tag, chunk_size, data);
+            let item = ListChunkItem {
+                id: chunk_tag.trim_end_matches('\0').to_string(),
+                value: data.trim_end_matches('\0').to_string(),
+            };
+            items.push(item);
+            result += 1;
+        }
+        header.list_chunk = Some(ListChunk{items});
+        result
     }
 
     pub fn get_samples_f32(&mut self) -> Result<Vec<f32>, &'static str> {
@@ -190,7 +248,7 @@ impl Reader {
                 continue;
             }
             // read wav data
-            let h = &self.header.unwrap();
+            let h = &self.header.clone().unwrap();
             let num_sample = (size / (h.bits_per_sample / 8) as u64) as u64;
             match h.sample_format {
                 // float

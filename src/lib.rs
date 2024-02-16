@@ -93,7 +93,7 @@
 //!        println!("split_samples={}", fname);
 //!        let mut file_out = File::create(fname).unwrap();
 //!        let sub = splitter::sub_samples(&samples, *range);
-//!        let wav = WavData{header: wav.header, samples: sub};
+//!        let wav = WavData{header: wav.header.clone(), samples: sub};
 //!        writer::to_file(&mut file_out, &wav).unwrap();
 //!    }
 //! }
@@ -191,8 +191,9 @@ mod tests {
         }
         let samples_len = samples.len();
         let mut file_out = File::create("./tone.wav").unwrap();
+        let sample_rate = header.sample_rate;
         writer::to_file(&mut file_out, &WavData{header, samples}).unwrap();
-        assert_eq!(samples_len, header.sample_rate as usize);
+        assert_eq!(samples_len, sample_rate as usize);
 
         // melody
         let mut header = WavHeader::new_mono();
@@ -286,7 +287,7 @@ mod tests {
             println!("split_samples={}", fname);
             let mut file_out = File::create(fname).unwrap();
             let sub = splitter::sub_samples(&samples, *range);
-            let wav = header::WavData{header: wav.header, samples: sub};
+            let wav = header::WavData{header: wav.header.clone(), samples: sub};
             writer::to_file(&mut file_out, &wav).unwrap();
         }
     }

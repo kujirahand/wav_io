@@ -25,7 +25,7 @@ cargo add wav_io
 
 ## Samples
 
-```
+```rust:make_sine.rs
 use std::f32::consts::PI;
 fn main() {
     // make sine wave
