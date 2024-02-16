@@ -143,16 +143,13 @@ pub fn read_from_file(file_in: std::fs::File) -> Result<(WavHeader, Vec<f32>), r
     }
 }
 /// Write to Wav file
-pub fn write_to_file(file_out: &mut std::fs::File, header: &WavHeader, samples: &Vec<f32>) -> Result<(), &'static str> {
+pub fn write_to_file(file_out: &mut std::fs::File, header: &WavHeader, samples: &Vec<f32>) -> Result<(), writer::EncoderError> {
     writer::f32samples_to_file(file_out, header, samples)
 }
 
 /// Write Wav data
-pub fn write_to_bytes(head: &WavHeader, samples: &Vec<f32>) -> Result<Vec<u8>, &'static str> {
-    match to_bytes(head, samples) {
-        Ok(v) => Ok(v),
-        Err(e) => Err(e),
-    }
+pub fn write_to_bytes(head: &WavHeader, samples: &Vec<f32>) -> Result<Vec<u8>, writer::EncoderError> {
+    to_bytes(head, samples)
 }
 
 /// convert i16 to f32 samples

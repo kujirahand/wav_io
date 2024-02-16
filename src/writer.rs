@@ -4,25 +4,41 @@ use crate::header::{WavHeader, SampleFormat, WavData};
 use std::io::{Cursor, Write, Read};
 use std::fs::File;
 
-const ERR_UNSUPPORTED_FORMAT: &str = "unsupported wav format";
-const ERR_IO_ERROR: &str = "io error";
+use thiserror::Error;
+
+#[derive(Error, Debug)]
+pub enum EncoderError {
+    #[error("Unsupported wav format, attribute {attribute:?} must be one of {expected:?}, found {found:?}")]
+    UnsupportedFormat {
+        attribute: &'static str,
+        expected: &'static [u32],
+        found: u32
+    },
+    #[error("Unsupported wav encoding, module only supports PCM data")]
+    UnsupportedEncoding,
+    #[error("Standard IO error")]
+    IOError {
+        #[source]
+        source: std::io::Error
+    }
+}
 
 /// WavData to file
-pub fn to_file(file_out: &mut File, wav: &WavData) -> Result<(), &'static str> {
+pub fn to_file(file_out: &mut File, wav: &WavData) -> Result<(), EncoderError> {
     let mut w = Writer::new();
     match w.from_scratch(&wav.header, &wav.samples) {
         Err(err) => return Err(err),
         Ok(_) => {},
     }
     match w.to_file(file_out) {
-        Err(_) => return Err(ERR_IO_ERROR),
+        Err(err) => return Err(EncoderError::IOError { source: err }),
         Ok(_) => {},
     }
     Ok(())
 }
 
 /// WavData to bytes
-pub fn to_bytes(head: &WavHeader, samples: &Vec<f32>) -> Result<Vec<u8>, &'static str> {
+pub fn to_bytes(head: &WavHeader, samples: &Vec<f32>) -> Result<Vec<u8>, EncoderError> {
     let mut w = Writer::new();
     match w.from_scratch(head, samples) {
         Err(err) => return Err(err),
@@ -32,42 +48,42 @@ pub fn to_bytes(head: &WavHeader, samples: &Vec<f32>) -> Result<Vec<u8>, &'stati
 }
 
 /// Samples: Vec<i16> to file
-pub fn i16samples_to_file(file_out: &mut File, header: &WavHeader, samples: &Vec<i16>) -> Result<(), &'static str> {
+pub fn i16samples_to_file(file_out: &mut File, header: &WavHeader, samples: &Vec<i16>) -> Result<(), EncoderError> {
     let mut w = Writer::new();
     match w.from_scratch_i16(header, samples) {
         Err(err) => return Err(err),
         Ok(_) => {},
     }
     match w.to_file(file_out) {
-        Err(_) => return Err(ERR_IO_ERROR),
+        Err(err) => return Err(EncoderError::IOError { source: err }),
         Ok(_) => {},
     }
     Ok(())
 }
 
 /// Samples: Vec<i32> to file
-pub fn i32samples_to_file(file_out: &mut File, header: &WavHeader, samples: &Vec<i32>) -> Result<(), &'static str> {
+pub fn i32samples_to_file(file_out: &mut File, header: &WavHeader, samples: &Vec<i32>) -> Result<(), EncoderError> {
     let mut w = Writer::new();
     match w.from_scratch_i(header, samples) {
         Err(err) => return Err(err),
         Ok(_) => {},
     }
     match w.to_file(file_out) {
-        Err(_) => return Err(ERR_IO_ERROR),
+        Err(err) => return Err(EncoderError::IOError { source: err }),
         Ok(_) => {},
     }
     Ok(())
 }
 
 /// Samples: Vec<f32> to file
-pub fn f32samples_to_file(file_out: &mut File, header: &WavHeader, samples: &Vec<f32>) -> Result<(), &'static str> {
+pub fn f32samples_to_file(file_out: &mut File, header: &WavHeader, samples: &Vec<f32>) -> Result<(), EncoderError> {
     let mut w = Writer::new();
     match w.from_scratch(header, samples) {
         Err(err) => return Err(err),
         Ok(_) => {},
     }
     match w.to_file(file_out) {
-        Err(_) => return Err(ERR_IO_ERROR),
+        Err(err) => return Err(EncoderError::IOError { source: err }),
         Ok(_) => {},
     }
     Ok(())
@@ -86,7 +102,7 @@ impl Writer {
         }
     }
     /// write RIFF header
-    pub fn write_riff_header(&mut self, head: &WavHeader, samples_len: u32) -> Result<(), &'static str> {
+    pub fn write_riff_header(&mut self, head: &WavHeader, samples_len: u32) -> Result<(), EncoderError> {
         let n_bytes = (head.bits_per_sample / 8) as u32;
         let data_size = n_bytes as u32 * samples_len as u32;
         let chunk_size = 4 + 24 + (8 + data_size);
@@ -99,7 +115,7 @@ impl Writer {
         let audio_format = match head.sample_format {
             SampleFormat::Int => 1,
             SampleFormat::Float => 3,
-            _ => return Err(ERR_UNSUPPORTED_FORMAT),
+            _ => return Err(EncoderError::UnsupportedEncoding),
         };
         self.write_u16(audio_format);
         self.write_u16(head.channels);
@@ -121,7 +137,7 @@ impl Writer {
         Ok(())
     }
     /// write sample to bytes
-    pub fn from_scratch(&mut self, head: &WavHeader, samples: &Vec<f32>) -> Result<(), &'static str> {
+    pub fn from_scratch(&mut self, head: &WavHeader, samples: &Vec<f32>) -> Result<(), EncoderError> {
         // calc data_size
         let n_bytes = (head.bits_per_sample / 8) as u32;
         let mut samples_len = samples.len();
@@ -144,22 +160,30 @@ impl Writer {
                     16 => for v in samples.iter() { self.write_f32_to_i16(*v); },
                     24 => for v in samples.iter() { self.write_f32_to_i24(*v); },
                     32 => for v in samples.iter() { self.write_f32_to_i32(*v); },
-                    _ => return Err(ERR_UNSUPPORTED_FORMAT),
+                    _ => return Err(EncoderError::UnsupportedFormat {
+                        attribute: "bits per integer sample",
+                        expected: &[8, 16, 24, 32],
+                        found: head.bits_per_sample as u32,
+                    }),
                 }
             },
             SampleFormat::Float => {
                 match head.bits_per_sample {
                     32 => for v in samples.iter() { self.write_f32(*v) },
                     64 => for v in samples.iter() { self.write_f64(*v as f64) },
-                    _ => return Err(ERR_UNSUPPORTED_FORMAT),
+                    _ => return Err(EncoderError::UnsupportedFormat {
+                        attribute: "bits per float sample",
+                        expected: &[32, 64],
+                        found: head.bits_per_sample as u32,
+                    }),
                 }
             },
-            _ => return Err(ERR_UNSUPPORTED_FORMAT),
+            _ => return Err(EncoderError::UnsupportedEncoding),
         }
         Ok(())
     }
     /// write sample(Vec<i32>) to bytes
-    pub fn from_scratch_i(&mut self, head: &WavHeader, samples: &Vec<i32>) -> Result<(), &'static str> {
+    pub fn from_scratch_i(&mut self, head: &WavHeader, samples: &Vec<i32>) -> Result<(), EncoderError> {
         // calc data_size
         let n_bytes = (head.bits_per_sample / 8) as u32;
         let mut samples_len = samples.len();
@@ -187,23 +211,31 @@ impl Writer {
                         for v in samples.iter() { self.write_i24( (get_rate(*v) * max24) as i32); }
                     },
                     32 => for v in samples.iter() { self.write_i32(*v as i32); },
-                    _ => return Err(ERR_UNSUPPORTED_FORMAT),
+                    _ => return Err(EncoderError::UnsupportedFormat {
+                        attribute: "bits per integer sample",
+                        expected: &[8, 16, 24, 32],
+                        found: head.bits_per_sample as u32,
+                    }),
                 }
             },
             SampleFormat::Float => {
                 match head.bits_per_sample {
                     32 => for v in samples.iter() { self.write_f32(get_rate(*v)) },
                     64 => for v in samples.iter() { self.write_f64(get_rate(*v) as f64) },
-                    _ => return Err(ERR_UNSUPPORTED_FORMAT),
+                    _ => return Err(EncoderError::UnsupportedFormat {
+                        attribute: "bits per float sample",
+                        expected: &[32, 64],
+                        found: head.bits_per_sample as u32,
+                    }),
                 }
             },
-            _ => return Err(ERR_UNSUPPORTED_FORMAT),
+            _ => return Err(EncoderError::UnsupportedEncoding),
         }
         Ok(())
     }
 
     /// write sample(Vec<i16>) to bytes
-    pub fn from_scratch_i16(&mut self, head: &WavHeader, samples: &Vec<i16>) -> Result<(), &'static str> {
+    pub fn from_scratch_i16(&mut self, head: &WavHeader, samples: &Vec<i16>) -> Result<(), EncoderError> {
         // calc data_size
         let n_bytes = (head.bits_per_sample / 8) as u32;
         let mut samples_len = samples.len();
@@ -231,17 +263,25 @@ impl Writer {
                         for v in samples.iter() { self.write_i24( (get_rate(*v) * max24) as i32); }
                     },
                     32 => for v in samples.iter() { self.write_i32( (get_rate(*v) * std::i32::MAX as f32) as i32 ); },
-                    _ => return Err(ERR_UNSUPPORTED_FORMAT),
+                    _ => return Err(EncoderError::UnsupportedFormat {
+                        attribute: "bits per integer sample",
+                        expected: &[8, 16, 24, 32],
+                        found: head.bits_per_sample as u32,
+                    }),
                 }
             },
             SampleFormat::Float => {
                 match head.bits_per_sample {
                     32 => for v in samples.iter() { self.write_f32(get_rate(*v)) },
                     64 => for v in samples.iter() { self.write_f64(get_rate(*v) as f64) },
-                    _ => return Err(ERR_UNSUPPORTED_FORMAT),
+                    _ => return Err(EncoderError::UnsupportedFormat {
+                        attribute: "bits per float sample",
+                        expected: &[32, 64],
+                        found: head.bits_per_sample as u32,
+                    }),
                 }
             },
-            _ => return Err(ERR_UNSUPPORTED_FORMAT),
+            _ => return Err(EncoderError::UnsupportedEncoding),
         }
         Ok(())
     }
