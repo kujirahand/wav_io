@@ -164,7 +164,7 @@ impl Reader {
         };
 
         // read the data and return it
-        let mut data = Vec::with_capacity(read_size);
+        let mut data = vec![0; read_size];
         match self.cur.read_exact(&mut data) {
             Ok(_) => Ok(data),
             Err(_) => {

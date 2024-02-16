@@ -183,6 +183,10 @@ fn command_resample(cmd: CommandOpt) {
     let file_in = std::fs::File::open(infile).unwrap();
     let mut wav = reader::from_file(file_in).unwrap();
     let mut file_out = std::fs::File::create(outfile).unwrap();
+    if wav.samples.len() == 0 {
+        println!("[Error] resample failed.");
+        return;
+    }
     let samples = resample::linear(wav.samples, wav.header.channels, wav.header.sample_rate, new_sample_rate);
     wav.header.sample_rate = new_sample_rate;
     writer::to_file(&mut file_out, &header::WavData{header:wav.header, samples}).unwrap();
