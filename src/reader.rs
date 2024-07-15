@@ -19,13 +19,13 @@ pub enum DecodeError {
         expected: u32,
         found: u32,
     },
-    #[error("Invalid chunk attribute, attribute {attribute:?} must be on of {expected:?}, found {found:?}")]
+    #[error("Invalid chunk attribute, attribute {attribute} must be on of {expected:?}, found 0x{found:02x}")]
     InvalidChunkAttributeRange {
         attribute: &'static str,
         expected: &'static [u32],
         found: u32,
     },
-    #[error("Unsupported wav-format, attribute {attribute} must be one of {expected:?}, found {found:?}")]
+    #[error("Unsupported wav-format, attribute {attribute} must be one of {expected:?}, found 0x{found:02x}")]
     UnsupportedWav {
         attribute: &'static str,
         expected: &'static [u32],
@@ -141,6 +141,11 @@ impl Reader {
             0x0006 => header.sample_format = SampleFormat::WaveFromatALaw,
             0x0007 => header.sample_format = SampleFormat::WaveFormatMuLaw,
             0xFFFE => header.sample_format = SampleFormat::SubFormat,
+            0x0055 => return Err(DecodeError::UnsupportedWav {
+                attribute: "format tag (0x0055: MP3)",
+                expected: &[0x0001, 0x0003, 0x0006, 0x0007, 0xFFFE],
+                found: format_tag as u32,
+            }),
             _ => return Err(DecodeError::InvalidChunkAttributeRange {
                 attribute: "format tag",
                 expected: &[0x0001, 0x0003, 0x0006, 0x0007, 0xFFFE],
