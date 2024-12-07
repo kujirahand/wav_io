@@ -343,7 +343,7 @@ impl Reader {
                             for _ in 0..num_sample {
                                 // 0..255
                                 let lv = self.read_u8().unwrap_or(0);
-                                let fv = (lv - 128) as f32;
+                                let fv = lv.wrapping_sub(128) as i8 as f32 / (0xFF as f32 / 2.0);
                                 result.push(fv);
                             }
                         },
