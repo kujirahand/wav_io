@@ -207,7 +207,7 @@ impl Writer {
                     8 => for v in samples.iter() { self.write_u8( (get_rate(*v) * 127f32 + 127f32) as u8 ); },
                     16 => for v in samples.iter() { self.write_i16( (get_rate(*v) * std::i16::MAX as f32) as i16); },
                     24 => {
-                        let max24 = (0xFFFFFFu32 / 2 - 1) as f32;
+                        let max24 = 0x7FFFFFu32 as f32;
                         for v in samples.iter() { self.write_i24( (get_rate(*v) * max24) as i32); }
                     },
                     32 => for v in samples.iter() { self.write_i32(*v as i32); },
@@ -259,7 +259,7 @@ impl Writer {
                     8 => for v in samples.iter() { self.write_u8( (get_rate(*v) * 127f32 + 127f32) as u8 ); },
                     16 => for v in samples.iter() { self.write_i16( *v ); },
                     24 => {
-                        let max24 = (0xFFFFFFu32 / 2 - 1) as f32;
+                        let max24 = 0x7FFFFFu32 as f32;
                         for v in samples.iter() { self.write_i24( (get_rate(*v) * max24) as i32); }
                     },
                     32 => for v in samples.iter() { self.write_i32( (get_rate(*v) * std::i32::MAX as f32) as i32 ); },
@@ -320,9 +320,9 @@ impl Writer {
         self.cur.write(&bytes).unwrap();
     }
     pub fn write_f32_to_i24(&mut self, v: f32) {
-        let iv:i32 = (v * 2_147_483_648f32) as i32;
+        let iv:i32 = (v * 8_388_608f32) as i32;
         let bytes = iv.to_le_bytes();
-        let wb:[u8; 3] = [bytes[1], bytes[2], bytes[3]];
+        let wb:[u8; 3] = [bytes[0], bytes[1], bytes[2]];
         self.cur.write(&wb).unwrap();
     }
     pub fn write_f32_to_i16(&mut self, v: f32) {
