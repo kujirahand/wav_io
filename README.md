@@ -1,4 +1,4 @@
-# wav_io 
+# wav_io for Rust
 
 This crate provides utilities for reading and writing WAV files.
 
@@ -23,9 +23,9 @@ Add wav_io to your project:
 cargo add wav_io
 ```
 
-## Sample
+## Samples
 
-```rust:make_sine.rs
+```rust
 use std::f32::consts::PI;
 fn main() {
     // make sine wave
@@ -49,4 +49,3 @@ fn main() {
 
 - [Docs](https://docs.rs/wav_io/latest/wav_io/)
 - [Repository](https://github.com/kujirahand/wav_io)
-

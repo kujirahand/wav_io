@@ -1,6 +1,6 @@
 [package]
 name = "wav_io"
-version = "0.1.15"
+version = "0.1.16"
 authors = ["kujirahand"]
 description = "Wav file reader and writer"
 license = "MIT"
@@ -16,5 +16,5 @@ rustc-args = ["--cfg", "docsrs"]
 all-features = true
 
 [dependencies]
-thiserror = "1.0.57"
+thiserror = "2.0.18"
 
