@@ -45,6 +45,37 @@ fn main() {
 
 - [Samples](https://docs.rs/wav_io/latest/wav_io/index.html)
 
+## CLI
+
+Build and run the bundled CLI:
+
+```sh
+cargo run -- help
+```
+
+Basic commands:
+
+```sh
+# Show WAV header and sample length
+cargo run -- info ./input.wav
+
+# Generate a WAV from MML text
+cargo run -- mml ./melody.wav "o5 l8 cdefgab>c"
+
+# Split by silence and write files to a directory
+cargo run -- split ./input.wav ./a_split
+
+# Resample to a new sample rate (Hz)
+cargo run -- resample ./input.wav 16000 ./output_16k.wav
+```
+
+Debug option:
+
+```sh
+# -d or --debug can be placed after the command
+cargo run -- info --debug ./input.wav
+```
+
 ## Links
 
 - [Docs](https://docs.rs/wav_io/latest/wav_io/)
