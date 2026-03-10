@@ -1,11 +1,11 @@
 # wav_io 
 
-This is a crate for reading and writing wav file.
+This crate provides utilities for reading and writing WAV files.
 
-## Suported format:
+## Supported formats
 
-- PCM 8, 16, 24, 32 bits Int
-- PCM 32, 64 bits Float
+- PCM 8-, 16-, 24-, and 32-bit integer
+- PCM 32- and 64-bit float
 
 ## Functions
 
@@ -13,9 +13,9 @@ This is a crate for reading and writing wav file.
 - [write](https://docs.rs/wav_io/latest/wav_io/writer/index.html)
 - [resample](https://docs.rs/wav_io/latest/wav_io/resample/index.html)
 - [split by silence](https://docs.rs/wav_io/latest/wav_io/splitter/index.html)
-- [make sine wave](https://docs.rs/wav_io/latest/wav_io/tone/index.html)
+- [generate sine waves](https://docs.rs/wav_io/latest/wav_io/tone/index.html)
 
-## Install
+## Installation
 
 Add wav_io to your project:
 
@@ -23,7 +23,7 @@ Add wav_io to your project:
 cargo add wav_io
 ```
 
-## Samples
+## Sample
 
 ```rust:make_sine.rs
 use std::f32::consts::PI;
@@ -41,11 +41,11 @@ fn main() {
 }
 ```
 
-## Example
+## Examples
 
 - [Samples](https://docs.rs/wav_io/latest/wav_io/index.html)
 
-## Link
+## Links
 
 - [Docs](https://docs.rs/wav_io/latest/wav_io/)
 - [Repository](https://github.com/kujirahand/wav_io)

@@ -373,6 +373,7 @@ impl Writer {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::reader::Reader;
     #[test]
     
     fn write_byte() {
@@ -418,6 +419,36 @@ mod tests {
             Err(e) => {
                 println!("error: {}", e);
             }
+        }
+    }
+
+    #[test]
+    fn write_odd_data_size_with_padding_and_roundtrip() {
+        let mut head = WavHeader::new_mono();
+        head.sample_format = SampleFormat::Int;
+        head.bits_per_sample = 8;
+        head.channels = 1;
+
+        // 8-bit mono with odd number of samples produces odd data chunk size.
+        let samples = vec![-1.0, 0.0, 1.0];
+        let bytes = to_bytes(&head, &samples).unwrap();
+
+        // Standard WAV header is 44 bytes without LIST chunks.
+        assert_eq!(bytes.len(), 44 + samples.len() + 1);
+        // Padding byte appended after odd-sized data chunk must be 0x00.
+        assert_eq!(bytes[bytes.len() - 1], 0);
+
+        let mut reader = Reader::from_vec(bytes).unwrap();
+        let read_head = reader.read_header().unwrap();
+        let read_samples = reader.get_samples_f32().unwrap();
+
+        assert_eq!(read_head.sample_format, SampleFormat::Int);
+        assert_eq!(read_head.bits_per_sample, 8);
+        assert_eq!(read_samples.len(), samples.len());
+        for (actual, expected) in read_samples.iter().zip(samples.iter()) {
+            let encoded = ((*expected * 128.0) as i16 + 127) as u8;
+            let expected_roundtrip = encoded.wrapping_sub(128) as i8 as f32 / (0xFF as f32 / 2.0);
+            assert!((actual - expected_roundtrip).abs() < 1e-6);
         }
     }
 }
