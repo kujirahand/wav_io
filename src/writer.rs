@@ -102,10 +102,16 @@ impl Writer {
         }
     }
     /// write RIFF header
-    pub fn write_riff_header(&mut self, head: &WavHeader, samples_len: u32) -> Result<(), EncoderError> {
+    pub fn write_riff_header(&mut self, head: &WavHeader, data_size: u32) -> Result<(), EncoderError> {
         let n_bytes = (head.bits_per_sample / 8) as u32;
-        let data_size = n_bytes as u32 * samples_len as u32;
-        let chunk_size = 4 + 24 + (8 + data_size);
+        // if data chunk byte count is odd, one 0x00 pad byte follows
+        let data_pad = data_size % 2;
+        // precompute LIST block to include its size in the RIFF chunk_size
+        let list_block = head.list_chunk.as_ref().map(|l| l.make_block());
+        // "LIST"(4) + size_field(4) + "INFO"(4) + block bytes
+        let list_total = list_block.as_ref().map_or(0u32, |b| 12 + b.len() as u32);
+        // chunk_size = "WAVE"(4) + fmt_chunk(24) + list_total + data_header(8) + data_size + data_pad
+        let chunk_size = 4 + 24 + list_total + (8 + data_size + data_pad);
         // write header
         self.write_str("RIFF");
         self.write_u32(chunk_size);
@@ -123,29 +129,23 @@ impl Writer {
         self.write_u32(head.sample_rate * n_bytes * head.channels as u32);
         self.write_u16(n_bytes as u16 * head.channels);
         self.write_u16(head.bits_per_sample);
-        // has LIST header
-        match head.clone().list_chunk {
-            Some(list) => {
-                let block = list.make_block();
-                self.write_str("LIST");
-                self.write_u32(block.len() as u32 + 4);
-                self.write_str("INFO");
-                self.cur.write(&block).unwrap();
-            },
-            None => {},
+        // write LIST chunk if present
+        if let Some(block) = list_block {
+            self.write_str("LIST");
+            self.write_u32(block.len() as u32 + 4);
+            self.write_str("INFO");
+            self.cur.write(&block).unwrap();
         }
         Ok(())
     }
     /// write sample to bytes
     pub fn from_scratch(&mut self, head: &WavHeader, samples: &Vec<f32>) -> Result<(), EncoderError> {
-        // calc data_size
         let n_bytes = (head.bits_per_sample / 8) as u32;
-        let mut samples_len = samples.len();
-        let has_pad = samples_len % 2;
-        samples_len += has_pad as usize;
-        let data_size = n_bytes as u32 * samples_len as u32;
+        let data_size = n_bytes * samples.len() as u32;
+        // if data chunk byte count is odd, one 0x00 pad byte follows
+        let data_pad = data_size % 2;
         // write riff header
-        match self.write_riff_header(head, samples_len as u32) {
+        match self.write_riff_header(head, data_size) {
             Err(err) => return Err(err),
             Ok(_) => {},
         }
@@ -180,18 +180,16 @@ impl Writer {
             },
             _ => return Err(EncoderError::UnsupportedEncoding),
         }
+        if data_pad == 1 { self.write_u8(0); }
         Ok(())
     }
     /// write sample(Vec<i32>) to bytes
     pub fn from_scratch_i(&mut self, head: &WavHeader, samples: &Vec<i32>) -> Result<(), EncoderError> {
-        // calc data_size
         let n_bytes = (head.bits_per_sample / 8) as u32;
-        let mut samples_len = samples.len();
-        let has_pad = samples_len % 2;
-        samples_len += has_pad as usize;
-        let data_size = n_bytes as u32 * samples_len as u32;
+        let data_size = n_bytes * samples.len() as u32;
+        let data_pad = data_size % 2;
         // write riff header
-        match self.write_riff_header(head, samples_len as u32) {
+        match self.write_riff_header(head, data_size) {
             Err(err) => return Err(err),
             Ok(_) => {},
         }
@@ -231,23 +229,21 @@ impl Writer {
             },
             _ => return Err(EncoderError::UnsupportedEncoding),
         }
+        if data_pad == 1 { self.write_u8(0); }
         Ok(())
     }
 
     /// write sample(Vec<i16>) to bytes
     pub fn from_scratch_i16(&mut self, head: &WavHeader, samples: &Vec<i16>) -> Result<(), EncoderError> {
-        // calc data_size
         let n_bytes = (head.bits_per_sample / 8) as u32;
-        let mut samples_len = samples.len();
-        let has_pad = samples_len % 2;
-        samples_len += has_pad as usize;
-        let data_size = n_bytes as u32 * samples_len as u32;
+        let data_size = n_bytes * samples.len() as u32;
+        let data_pad = data_size % 2;
         // write riff header
-        match self.write_riff_header(head, samples_len as u32) {
+        match self.write_riff_header(head, data_size) {
             Err(err) => return Err(err),
             Ok(_) => {},
         }
-        // write data header
+        // write data header (size excludes the pad byte)
         self.write_str("data");
         self.write_u32(data_size);
         let max = std::i16::MAX as f32;
@@ -283,6 +279,7 @@ impl Writer {
             },
             _ => return Err(EncoderError::UnsupportedEncoding),
         }
+        if data_pad == 1 { self.write_u8(0); }
         Ok(())
     }
 

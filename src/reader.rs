@@ -283,7 +283,11 @@ impl Reader {
                 Ok(_) => String::from_utf8_lossy(&data),
                 Err(_) => break,
             };
-            // println!("chunk_tag={:?}::{}::{}", chunk_tag, chunk_size, data);
+            // skip RIFF padding byte if sub-chunk size is odd
+            if chunk_size % 2 == 1 {
+                let mut pad = [0u8; 1];
+                let _ = cur.read_exact(&mut pad);
+            }
             let item = ListChunkItem {
                 id: chunk_tag.trim_end_matches('\0').to_string(),
                 value: data.trim_end_matches('\0').to_string(),
@@ -307,7 +311,8 @@ impl Reader {
             if size == 0 { continue }
             // data?
             if chunk_tag != "data" {
-                self.cur.set_position(self.cur.position() + size);
+                // skip chunk data + RIFF padding byte if size is odd
+                self.cur.set_position(self.cur.position() + size + (size % 2));
                 continue;
             }
             // read wav data
@@ -376,6 +381,10 @@ impl Reader {
                     }
                 },
                 _ => return Err(DecodeError::UnsupportedEncoding),
+            }
+            // skip RIFF padding byte if data size is odd
+            if size % 2 == 1 {
+                self.cur.set_position(self.cur.position() + 1);
             }
         }
         Ok(result)
