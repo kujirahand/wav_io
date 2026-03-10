@@ -451,4 +451,58 @@ mod tests {
             assert!((actual - expected_roundtrip).abs() < 1e-6);
         }
     }
+
+    fn decode_i24_le(bytes: [u8; 3]) -> i32 {
+        let raw = (bytes[0] as i32) | ((bytes[1] as i32) << 8) | ((bytes[2] as i32) << 16);
+        if (raw & 0x0080_0000) != 0 {
+            raw | !0x00ff_ffff
+        } else {
+            raw
+        }
+    }
+
+    #[test]
+    fn write_f32_to_i24_edge_values() {
+        let mut w = Writer::new();
+        w.write_f32_to_i24(1.0);
+        w.write_f32_to_i24(-1.0);
+        let bytes = w.to_bytes();
+
+        assert_eq!(&bytes[0..3], &[0xFF, 0xFF, 0x7F]);
+        assert_eq!(&bytes[3..6], &[0x00, 0x00, 0x80]);
+
+        assert_eq!(decode_i24_le([bytes[0], bytes[1], bytes[2]]), 8_388_607);
+        assert_eq!(decode_i24_le([bytes[3], bytes[4], bytes[5]]), -8_388_608);
+    }
+
+    #[test]
+    fn write_f32_to_i24_midpoint_value() {
+        let mut w = Writer::new();
+        w.write_f32_to_i24(0.5);
+        let bytes = w.to_bytes();
+
+        assert_eq!(&bytes[0..3], &[0x00, 0x00, 0x40]);
+        assert_eq!(decode_i24_le([bytes[0], bytes[1], bytes[2]]), 4_194_304);
+    }
+
+    #[test]
+    fn write_f32_to_i24_key_edge_cases() {
+        let cases: [(f32, [u8; 3]); 7] = [
+            (-1.0, [0x00, 0x00, 0x80]),
+            (-0.5, [0x00, 0x00, 0xC0]),
+            (0.0, [0x00, 0x00, 0x00]),
+            (0.5, [0x00, 0x00, 0x40]),
+            (1.0, [0xFF, 0xFF, 0x7F]),
+            (1.0001, [0xFF, 0xFF, 0x7F]),
+            (-1.0001, [0x00, 0x00, 0x80]),
+        ];
+
+        for (input, expected) in cases {
+            let mut w = Writer::new();
+            w.write_f32_to_i24(input);
+            let bytes = w.to_bytes();
+            assert_eq!(bytes.len(), 3);
+            assert_eq!([bytes[0], bytes[1], bytes[2]], expected, "input={input}");
+        }
+    }
 }
