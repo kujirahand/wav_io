@@ -28,14 +28,27 @@ impl ToneOptions {
 
 /// write notes
 pub fn write_notes(samples: &mut Vec<f32>, notes: Vec<Note>, opt: &ToneOptions) {
+    // A short fade-in/out prevents clicks caused by abrupt waveform jumps.
+    let env_ms = 5.0_f32;
+    let env_samples = ((opt.sample_rate as f32 * env_ms) / 1000.0) as usize;
+
     for note in notes.iter() {
         let len = (4.0 / note.len as f32 * (60.0 / opt.bpm) * opt.sample_rate as f32) as usize;
         let tone = if note.no < 0 { 0.0 } else {
             440.0 * 2.0f32.powf((note.no - 69) as f32 / 12.0)
         };
+        let env_len = env_samples.min(len.saturating_div(2));
         for t in 0..len {
             let a = t as f32 / opt.sample_rate as f32;
-            let v = (a * tone * 2.0 * PI).sin() * opt.volume * note.vel;
+            let mut env = 1.0_f32;
+            if env_len > 0 {
+                if t < env_len {
+                    env = t as f32 / env_len as f32;
+                } else if t >= len - env_len {
+                    env = (len - t - 1) as f32 / env_len as f32;
+                }
+            }
+            let v = (a * tone * 2.0 * PI).sin() * opt.volume * note.vel * env;
             samples.push(v);
         }
     }
