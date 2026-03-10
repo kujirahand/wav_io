@@ -317,7 +317,7 @@ impl Writer {
         self.cur.write(&bytes).unwrap();
     }
     pub fn write_f32_to_i24(&mut self, v: f32) {
-        let iv:i32 = (v * 8_388_608f32) as i32;
+        let iv = ((v * 8_388_608f32) as i32).clamp(-8_388_608, 8_388_607);
         let bytes = iv.to_le_bytes();
         let wb:[u8; 3] = [bytes[0], bytes[1], bytes[2]];
         self.cur.write(&wb).unwrap();
